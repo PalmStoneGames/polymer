@@ -18,15 +18,14 @@ package polymer
 
 import (
 	"reflect"
-	"strings"
 
 	"github.com/gopherjs/gopherjs/js"
 )
 
-type fieldTag struct {
-	FieldIndex int
-	FieldName  string
-}
+const protoIndexKey = "_polymer_protoIndex"
+
+//TODO: Use an opaque object set on this instead of a map, the map doesn't allow the proto nor js object to ever get freed
+var jsMap []Interface
 
 // Register makes polymer aware of a certain type
 // Polymer will analyze the type and use it for the tag returned by TagName()
@@ -34,65 +33,42 @@ type fieldTag struct {
 func Register(proto Interface) {
 	// Type detection
 	refType := reflect.TypeOf(proto)
-	if refType.Kind() == reflect.Ptr {
-		refType = refType.Elem()
+	if refType.Kind() != reflect.Ptr {
+		panic("Expected proto to be a pointer to a struct")
+	}
+	if refType.Elem().Kind() != reflect.Struct {
+		panic("Expected proto to be a pointer to a struct")
 	}
 
-	// Setup js.M object
+	// Parse info
+	handlers := parseHandlers(refType)
+	tags := parseTags(refType.Elem())
+
+	// Setup basics
 	m := js.M{}
 	m["is"] = proto.TagName()
 	m["extends"] = proto.Extends()
-	m["created"] = createdCallback(refType)
+	m["created"] = createdCallback(refType, tags)
+	m["ready"] = readyCallback()
+	m["attached"] = attachedCallback()
+	m["detached"] = detachedCallback()
+
+	// Setup properties
+	properties := js.M{}
+	for _, tag := range tags {
+		curr := js.M{}
+		curr["type"] = getJsType(refType.Elem().Field(tag.FieldIndex).Type)
+		curr["notify"] = true
+
+		properties[getJsName(tag.FieldName)] = curr
+	}
+	m["properties"] = properties
+
+	// Setup handlers
+	for _, handler := range handlers {
+		m[getJsName(handler.Name)] = handlerCallback(handler)
+	}
 
 	// Register our prototype with polymer
 	js.Global.Call("Polymer", m)
-}
-
-func parseTags(refType reflect.Type) []*fieldTag {
-	var tags []*fieldTag
-	for i := 0; i < refType.NumField(); i++ {
-		field := refType.Field(i)
-		tag := strings.Split(field.Tag.Get("polymer"), ",")
-
-		// First field in the tag is the name, if it isn't present, we bail
-		if len(tag) == 0 || tag[0] == "" {
-			continue
-		}
-
-		tags = append(tags, &fieldTag{
-			FieldIndex: i,
-			FieldName:  tag[0],
-		})
-	}
-
-	return tags
-}
-
-func createdCallback(refType reflect.Type) *js.Object {
-	tags := parseTags(refType)
-
-	return js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-		// Create a new Go side object and keep it around in this closure
-		// That way, we can keep track of it across callbacks and calls
-		refVal := reflect.New(refType)
-		proto := refVal.Interface().(Interface)
-		refVal = refVal.Elem()
-
-		// Trigger the Created callback
-		proto.Created()
-
-		// Setup Ready callback
-		this.Set("ready", func() {
-			for _, tag := range tags {
-				this.Set(tag.FieldName, refVal.Field(tag.FieldIndex).Interface())
-			}
-
-			proto.Ready()
-		})
-
-		this.Set("attached", func() { proto.Attached() })
-		this.Set("detached", func() { proto.Detached() })
-
-		return nil
-	})
 }

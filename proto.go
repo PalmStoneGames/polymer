@@ -16,6 +16,13 @@ limitations under the License.
 
 package polymer
 
+import (
+	"reflect"
+	"strings"
+
+	"github.com/gopherjs/gopherjs/js"
+)
+
 // Interface represents the interface implemented by all type prototypes
 // Any type implementing this interface can be registered with polymer.Register()
 // Most of this interface can be implemented by embedded polymer.Proto
@@ -30,14 +37,70 @@ type Interface interface {
 	Ready()
 	Attached()
 	Detached()
+
+	// Internal utility
+	data() *Proto
+}
+
+type fieldTag struct {
+	FieldIndex int
+	FieldName  string
+	AutoNotify bool
+	Bind       bool
 }
 
 // Proto represents a prototype for a polymer type
-// It is initially empty, it's meant to be embedded by the structures used to implements polymer tags
-type Proto struct{}
+// it's meant to be embedded by the structures used to implements polymer tags
+type Proto struct {
+	object *js.Object
+	tags   []*fieldTag
+}
 
-func (p Proto) Extends() string { return "" }
-func (p Proto) Created()        {}
-func (p Proto) Ready()          {}
-func (p Proto) Attached()       {}
-func (p Proto) Detached()       {}
+func (p *Proto) Extends() string { return "" }
+func (p *Proto) Created()        {}
+func (p *Proto) Ready()          {}
+func (p *Proto) Attached()       {}
+func (p *Proto) Detached()       {}
+func (p *Proto) data() *Proto    { return p }
+
+func parseTags(refType reflect.Type) []*fieldTag {
+	var tags []*fieldTag
+	for i := 0; i < refType.NumField(); i++ {
+		field := refType.Field(i)
+		tagText := field.Tag.Get("polymer")
+		if tagText == "" {
+			continue
+		}
+		tag := strings.Split(tagText, ",")
+
+		f := fieldTag{
+			FieldIndex: i,
+			FieldName:  field.Name,
+		}
+
+		for i := 1; i < len(tag); i++ {
+			switch tag[i] {
+			case "bind":
+				f.Bind = true
+			}
+		}
+
+		tags = append(tags, &f)
+	}
+
+	return tags
+}
+
+func parseHandlers(refType reflect.Type) []reflect.Method {
+	var handlers []reflect.Method
+
+	for i := 0; i < refType.NumMethod(); i++ {
+		method := refType.Method(i)
+
+		if strings.HasPrefix(method.Name, "Handle") {
+			handlers = append(handlers, method)
+		}
+	}
+
+	return handlers
+}

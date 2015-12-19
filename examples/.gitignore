@@ -1,0 +1,3 @@
+# Ignore gopherJS created files in the examples folder
+*.js
+*.js.map

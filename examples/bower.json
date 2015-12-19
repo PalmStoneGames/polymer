@@ -1,0 +1,22 @@
+{
+  "name": "examples",
+  "homepage": "code.palmstonegames.org/polymer",
+  "authors": [
+    "Luna Duclos <luna.duclos@palmstonegames.com>"
+  ],
+  "description": "Polymer example applications",
+  "main": "",
+  "moduleType": [],
+  "license": "Apache 2.0",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "polymer": "Polymer/polymer#^1.2.0"
+  }
+}
