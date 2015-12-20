@@ -45,7 +45,6 @@ type Interface interface {
 type fieldTag struct {
 	FieldIndex int
 	FieldName  string
-	AutoNotify bool
 	Bind       bool
 }
 

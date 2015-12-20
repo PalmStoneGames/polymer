@@ -24,7 +24,7 @@ import (
 
 const protoIndexKey = "_polymer_protoIndex"
 
-//TODO: Use an opaque object set on this instead of a map, the map doesn't allow the proto nor js object to ever get freed
+//TODO: Use an opaque object set on this instead of a slice, the slice doesn't allow the proto nor js object to ever get freed
 var jsMap []Interface
 
 // Register makes polymer aware of a certain type

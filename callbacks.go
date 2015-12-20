@@ -57,8 +57,11 @@ func readyCallback() *js.Object {
 
 		// Set initial field values and register change events
 		for _, tag := range proto.data().tags {
-			this.Set(getJsName(tag.FieldName), refVal.Elem().Field(tag.FieldIndex).Interface())
-			this.Call("addEventListener", getPropertyChangedEventName(tag.FieldName), propertyChangeCallback(refVal, tag))
+			if err := Decode(this.Get(getJsName(tag.FieldName)), refVal.Elem().Field(tag.FieldIndex).Addr().Interface()); err != nil {
+				panic(fmt.Sprintf("Error while decoding polymer field value for %v: %v", tag.FieldName, err))
+			}
+
+			this.Call("addEventListener", getJsPropertyChangedEvent(tag.FieldName), propertyChangeCallback(refVal, tag))
 		}
 
 		// Call the proto side callback for user hooks
@@ -93,34 +96,40 @@ func detachedCallback() *js.Object {
 }
 
 func propertyChangeCallback(refVal reflect.Value, tag *fieldTag) func(*js.Object) {
-	return func(e *js.Object) {
-		refVal.Elem().Field(tag.FieldIndex).Set(reflect.ValueOf(e.Get("detail").Get("value").Interface()))
+	return func(jsEvent *js.Object) {
+		// Decode the event
+		var e PropertyChangedEvent
+		if err := decodeStruct(jsEvent, &e); err != nil {
+			panic(fmt.Sprintf("Error while decoding event: %v", err))
+		}
+
+		// Set the field on the Go side
+		refVal.Elem().Field(tag.FieldIndex).Set(reflect.ValueOf(e.Value))
 	}
 }
 
 func handlerCallback(handler reflect.Method) *js.Object {
-	return js.MakeFunc(func(this *js.Object, args []*js.Object) interface{} {
+	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
 		f := func() {
 			// Lookup the proto
 			proto := jsMap[this.Get(protoIndexKey).Int()]
 
 			// Build up reflect args
-			reflectArgs := make([]reflect.Value, len(args)+1)
+			// We loop through the function arguments and use the types of each argument to decode the jsArgs
+			// If the function has more arguments than we have jsArgs, they're passed in as Zero values
+			// If the function has less arguments than jsArgs, the superfluous jsArgs are silently discarded
+			reflectArgs := make([]reflect.Value, handler.Type.NumIn())
 			reflectArgs[0] = reflect.ValueOf(proto)
-			for i, arg := range args {
-				reflectArgs[i+1] = reflect.ValueOf(arg.Interface())
-			}
+			for i := 1; i < handler.Type.NumIn(); i++ {
+				arg := reflect.New(handler.Type.In(i))
+				reflectArgs[i] = arg.Elem()
 
-			// Do the call, add a defer to recover from failures and give a more useful error message
-			defer func() {
-				if recover() != nil {
-					errStr := fmt.Sprintf("Expected %v to have %v arguments", handler.Name, len(reflectArgs)-1)
-					for i := 0; i < len(args); i++ {
-						errStr += fmt.Sprintf("\n%v: %T", i+1, args[i].Interface())
+				if len(jsArgs) > i {
+					if err := Decode(jsArgs[i-1], arg.Interface()); err != nil {
+						panic(fmt.Sprintf("Error while decoding argument %v: %v", i, err))
 					}
-					panic(errStr)
 				}
-			}()
+			}
 
 			handler.Func.Call(reflectArgs)
 		}

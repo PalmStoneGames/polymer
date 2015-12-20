@@ -14,4 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package polymer // import "code.palmstonegames.com/polymer"
+package polymer
+
+import "time"
+
+type Event struct {
+	Type string    `polymer-decode:"type"`
+	Time time.Time `polymer-decode:"timeStamp"`
+
+	IsTrusted        bool `polymer-decode:"isTrusted"`
+	Cancelable       bool `polymer-decode:"cancelable"`
+	DefaultPrevented bool `polymer-decode:"defaultPrevented"`
+	Bubbles          bool `polymer-decode:"bubbles"`
+	CancelBubble     bool `polymer-decode:"cancelBubble"`
+
+	// TODO: Once we have DOM bindings, add srcElement, target and path
+}
+
+type PropertyChangedEvent struct {
+	Event
+	Value string `polymer-decode:"detail.value"`
+}
