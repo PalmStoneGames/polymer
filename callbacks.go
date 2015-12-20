@@ -57,8 +57,25 @@ func readyCallback() *js.Object {
 
 		// Set initial field values and register change events
 		for _, tag := range proto.data().tags {
-			if err := Decode(this.Get(getJsName(tag.FieldName)), refVal.Elem().Field(tag.FieldIndex).Addr().Interface()); err != nil {
+			// Get field info first
+			fieldVal := refVal.Elem().Field(tag.FieldIndex)
+			fieldType := fieldVal.Type()
+			jsFieldName := getJsName(tag.FieldName)
+
+			// Set the value on a dummy first, we compare it with the zero value after to decide whether to set the field from js or read it from Go
+			currVal := reflect.New(fieldType)
+			zeroVal := reflect.Zero(fieldType)
+			if err := Decode(this.Get(jsFieldName), currVal.Interface()); err != nil {
 				panic(fmt.Sprintf("Error while decoding polymer field value for %v: %v", tag.FieldName, err))
+			}
+
+			// Decide whether to do js -> go or go -> js
+			// If the value read from js is the zero value, we do go -> js
+			// otherwise, we do js -> go
+			if currVal.Elem().Interface() == zeroVal.Interface() {
+				this.Set(jsFieldName, fieldVal.Interface())
+			} else {
+				fieldVal.Set(currVal.Elem())
 			}
 
 			this.Call("addEventListener", getJsPropertyChangedEvent(tag.FieldName), propertyChangeCallback(tag))

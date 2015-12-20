@@ -22,8 +22,11 @@ func (n *NameTag) TagName() string {
 	return "name-tag"
 }
 
-func (n *NameTag) Ready() {
+func (n *NameTag) Created() {
 	n.ID = rand.Int63()
+}
+
+func (n *NameTag) Ready() {
 	fmt.Printf("%v: Initial Name = %v\n", n.ID, n.Name)
 }
 
