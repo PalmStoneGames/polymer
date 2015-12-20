@@ -38,6 +38,9 @@ type Interface interface {
 	Attached()
 	Detached()
 
+	// Special events callbacks
+	PropertyChanged(fieldName string, e *PropertyChangedEvent)
+
 	// Internal utility
 	data() *Proto
 }
@@ -56,11 +59,15 @@ type Proto struct {
 }
 
 func (p *Proto) Extends() string { return "" }
-func (p *Proto) Created()        {}
-func (p *Proto) Ready()          {}
-func (p *Proto) Attached()       {}
-func (p *Proto) Detached()       {}
-func (p *Proto) data() *Proto    { return p }
+
+func (p *Proto) Created()  {}
+func (p *Proto) Ready()    {}
+func (p *Proto) Attached() {}
+func (p *Proto) Detached() {}
+
+func (p *Proto) PropertyChanged(fieldName string, e *PropertyChangedEvent) {}
+
+func (p *Proto) data() *Proto { return p }
 
 func parseTags(refType reflect.Type) []*fieldTag {
 	var tags []*fieldTag

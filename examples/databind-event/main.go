@@ -27,8 +27,12 @@ func (n *NameTag) Ready() {
 	fmt.Printf("%v: Initial Name = %v\n", n.ID, n.Name)
 }
 
-func (n *NameTag) HandleNameChange(e polymer.Event) {
-	fmt.Printf("%v: Name = %v\n", n.ID, n.Name)
+func (n *NameTag) HandleNameChange(e *polymer.Event) {
+	fmt.Printf("%v: HandleNameChange event. Name = %v\n", n.ID, n.Name)
+}
+
+func (n *NameTag) PropertyChanged(fieldName string, e *polymer.PropertyChangedEvent) {
+	fmt.Printf("%v: PropertyChanged event with value %v. Name = %v\n", n.ID, e.Value, n.Name)
 }
 
 func main() {}

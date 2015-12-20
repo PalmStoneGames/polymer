@@ -61,7 +61,7 @@ func readyCallback() *js.Object {
 				panic(fmt.Sprintf("Error while decoding polymer field value for %v: %v", tag.FieldName, err))
 			}
 
-			this.Call("addEventListener", getJsPropertyChangedEvent(tag.FieldName), propertyChangeCallback(refVal, tag))
+			this.Call("addEventListener", getJsPropertyChangedEvent(tag.FieldName), propertyChangeCallback(tag))
 		}
 
 		// Call the proto side callback for user hooks
@@ -95,17 +95,26 @@ func detachedCallback() *js.Object {
 	})
 }
 
-func propertyChangeCallback(refVal reflect.Value, tag *fieldTag) func(*js.Object) {
-	return func(jsEvent *js.Object) {
+func propertyChangeCallback(tag *fieldTag) *js.Object {
+	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
+		// Fetch the proto and refVal
+		proto := jsMap[this.Get(protoIndexKey).Int()]
+		refVal := reflect.ValueOf(proto)
+
 		// Decode the event
 		var e PropertyChangedEvent
-		if err := decodeStruct(jsEvent, &e); err != nil {
+		if err := decodeStruct(jsArgs[0], &e); err != nil {
 			panic(fmt.Sprintf("Error while decoding event: %v", err))
 		}
 
 		// Set the field on the Go side
 		refVal.Elem().Field(tag.FieldIndex).Set(reflect.ValueOf(e.Value))
-	}
+
+		// Trigger NotifyPropertyChanged
+		proto.PropertyChanged(tag.FieldName, &e)
+
+		return nil
+	})
 }
 
 func handlerCallback(handler reflect.Method) *js.Object {
@@ -121,8 +130,15 @@ func handlerCallback(handler reflect.Method) *js.Object {
 			reflectArgs := make([]reflect.Value, handler.Type.NumIn())
 			reflectArgs[0] = reflect.ValueOf(proto)
 			for i := 1; i < handler.Type.NumIn(); i++ {
-				arg := reflect.New(handler.Type.In(i))
-				reflectArgs[i] = arg.Elem()
+				argType := handler.Type.In(i)
+				var arg reflect.Value
+				if argType.Kind() == reflect.Ptr {
+					arg = reflect.New(argType.Elem())
+					reflectArgs[i] = arg
+				} else {
+					arg = reflect.New(argType)
+					reflectArgs[i] = arg.Elem()
+				}
 
 				if len(jsArgs) > i {
 					if err := Decode(jsArgs[i-1], arg.Interface()); err != nil {
