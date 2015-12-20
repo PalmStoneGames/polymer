@@ -28,17 +28,35 @@ import (
 // Most of this interface can be implemented by embedded polymer.Proto
 // The notable exception to this is TagName, which must always be manually implemented
 type Interface interface {
-	// Basic info
+	// TagName should return the name of the tag this type will be handling
 	TagName() string
+	// Extends should return the name of the tag that this element extends.
+	// Currently, polymer only supports extending default elements, not user-defined ones
 	Extends() string
 
-	// Lifetime callbacks
+	// Created is part of the lifecycle callbacks
+	// It is called when the element is initially created, before the constructor
+	// Details can be found at https://www.polymer-project.org/1.0/docs/devguide/registering-elements.html#lifecycle-callbacks
 	Created()
+
+	// Ready is part of the lifecycle callbacks
+	// The ready callback is called when an element’s local DOM is ready.
+	// It is called after the element’s template has been stamped and all elements inside the element’s local DOM have been configured
+	// (with values bound from parents, deserialized attributes, or else default values) and had their ready method called.
+	// Details can be found at https://www.polymer-project.org/1.0/docs/devguide/registering-elements.html#ready-method
 	Ready()
+
+	// Attached is part of the lifecycle callbacks
+	// It is called when the element is attached to the DOM
+	// Details can be found at https://www.polymer-project.org/1.0/docs/devguide/registering-elements.html#lifecycle-callbacks
 	Attached()
+
+	// Detached is part of the lifecycle callbacks
+	// It is called when the element is detached from the DOM
+	// Details can be found at https://www.polymer-project.org/1.0/docs/devguide/registering-elements.html#lifecycle-callbacks
 	Detached()
 
-	// Special events callbacks
+	// PropertyChanged is called when polymer detects a property change on a property
 	PropertyChanged(fieldName string, e *PropertyChangedEvent)
 
 	// Internal utility
