@@ -16,7 +16,10 @@ limitations under the License.
 
 package polymer
 
-import "time"
+import (
+	"github.com/gopherjs/gopherjs/js"
+	"time"
+)
 
 type Event struct {
 	Type string    `polymer-decode:"type"`
@@ -33,5 +36,6 @@ type Event struct {
 
 type PropertyChangedEvent struct {
 	Event
-	Value string `polymer-decode:"detail.value"`
+	JSValue *js.Object `polymer-decode:"detail.value"`
+	Value   interface{}
 }

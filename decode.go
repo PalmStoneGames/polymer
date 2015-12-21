@@ -34,9 +34,12 @@ func Decode(jsVal *js.Object, target interface{}) error {
 		return fmt.Errorf("target should be a pointer")
 	}
 
-	refType = refType.Elem()
-	refVal := reflect.ValueOf(target).Elem()
+	return decodeRaw(jsVal, reflect.ValueOf(target).Elem())
+}
 
+// decodeRaw is an unwrapped version of Decode
+// it is needed internally to be able to avoid the extra reflect indirection from a normal Decode() call
+func decodeRaw(jsVal *js.Object, refVal reflect.Value) error {
 	switch refVal.Kind() {
 	case reflect.Int:
 		refVal.Set(reflect.ValueOf(jsVal.Int()))
@@ -66,30 +69,33 @@ func Decode(jsVal *js.Object, target interface{}) error {
 		refVal.Set(reflect.ValueOf(jsVal.String()))
 	case reflect.Bool:
 		refVal.Set(reflect.ValueOf(jsVal.Bool()))
+	case reflect.Interface:
+		refVal.Set(reflect.ValueOf(jsVal.Interface()))
 	case reflect.Struct:
 		switch refVal.Interface().(type) {
 		case time.Time:
 			timeMs := jsVal.Int64()
 			refVal.Set(reflect.ValueOf(time.Unix(timeMs/1000, (timeMs%1000)*1000000)))
 		default:
-			return decodeStruct(jsVal, target)
+			return decodeStruct(jsVal, refVal)
+		}
+	case reflect.Ptr:
+		switch refVal.Interface().(type) {
+		case *js.Object:
+			refVal.Set(reflect.ValueOf(jsVal))
+		default:
+			refVal.Set(reflect.Zero(refVal.Type()))
+			return Decode(jsVal, refVal.Elem().Interface())
 		}
 	default:
-		return fmt.Errorf("Do not know how to deal with kind %v while decoding data for field %v", refVal.Kind(), refType.Name)
+		return fmt.Errorf("Do not know how to deal with kind %v while decoding data for field %v", refVal.Kind(), refVal.Type().Name)
 	}
 
 	return nil
 }
 
-func decodeStruct(jsVal *js.Object, target interface{}) error {
-	refVal := reflect.ValueOf(target)
-	refType := reflect.TypeOf(target)
-	if refType.Kind() != reflect.Ptr || refType.Elem().Kind() != reflect.Struct {
-		return fmt.Errorf("target should be a pointer to a struct")
-	}
-
-	refVal = refVal.Elem()
-	refType = refType.Elem()
+func decodeStruct(jsVal *js.Object, refVal reflect.Value) error {
+	refType := refVal.Type()
 
 	for i := 0; i < refType.NumField(); i++ {
 		// Grab field tag information
@@ -98,7 +104,7 @@ func decodeStruct(jsVal *js.Object, target interface{}) error {
 
 		// Check if the field is anonymous, if so, go through it as if it was at this level
 		if fieldType.Anonymous {
-			decodeStruct(jsVal, fieldVal.Addr().Interface())
+			decodeStruct(jsVal, fieldVal)
 			continue
 		}
 
@@ -114,7 +120,7 @@ func decodeStruct(jsVal *js.Object, target interface{}) error {
 		}
 
 		// Set the value
-		if err := Decode(curr, fieldVal.Addr().Interface()); err != nil {
+		if err := decodeRaw(curr, fieldVal); err != nil {
 			return err
 		}
 	}

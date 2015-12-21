@@ -25,8 +25,7 @@ import (
 
 func createdCallback(refType reflect.Type, tags []*fieldTag) *js.Object {
 	return js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-		// Create a new Go side object and keep it around in this closure
-		// That way, we can keep track of it across callbacks and calls
+		// Create a new Go side object
 		refVal := reflect.New(refType.Elem())
 		proto := refVal.Interface().(Interface)
 		refVal = refVal.Elem()
@@ -120,12 +119,21 @@ func propertyChangeCallback(tag *fieldTag) *js.Object {
 
 		// Decode the event
 		var e PropertyChangedEvent
-		if err := decodeStruct(jsArgs[0], &e); err != nil {
+		if err := Decode(jsArgs[0], &e); err != nil {
 			panic(fmt.Sprintf("Error while decoding event: %v", err))
 		}
 
-		// Set the field on the Go side
-		refVal.Elem().Field(tag.FieldIndex).Set(reflect.ValueOf(e.Value))
+		// Decode the value, it's left undecoded in the event because it can't be typed
+		// We have the field type however, so we can use the *js.Object for the value and then set the interface{} val
+		fieldType := reflect.TypeOf(proto).Elem().Field(tag.FieldIndex).Type
+		fieldVal := reflect.New(fieldType)
+		if err := Decode(e.JSValue, fieldVal.Interface()); err != nil {
+			panic(fmt.Sprintf("Error while decoding value: %v", err))
+		}
+
+		// Set the field on the Go side struct and on the event
+		refVal.Elem().Field(tag.FieldIndex).Set(fieldVal.Elem())
+		e.Value = fieldVal.Elem().Interface()
 
 		// Trigger NotifyPropertyChanged
 		proto.PropertyChanged(tag.FieldName, &e)
