@@ -27,6 +27,15 @@ const protoIndexKey = "_polymer_protoIndex"
 //TODO: Use an opaque object set on this instead of a slice, the slice doesn't allow the proto nor js object to ever get freed
 var jsMap []Interface
 
+var (
+	webComponentsReady   = false
+	pendingRegistrations []js.M
+)
+
+func init() {
+	js.Global.Get("window").Call("addEventListener", "WebComponentsReady", webComponentsReadyCallback)
+}
+
 // Register makes polymer aware of a certain type
 // Polymer will analyze the type and use it for the tag returned by TagName()
 // The type will then be instantiated automatically when tags corresponding to TagName are created through any method
@@ -70,5 +79,18 @@ func Register(proto Interface) {
 	}
 
 	// Register our prototype with polymer
-	js.Global.Call("Polymer", m)
+	if webComponentsReady {
+		js.Global.Call("Polymer", m)
+	} else {
+		pendingRegistrations = append(pendingRegistrations, m)
+	}
+}
+
+func webComponentsReadyCallback() {
+	if !webComponentsReady {
+		webComponentsReady = true
+		for _, reg := range pendingRegistrations {
+			js.Global.Call("Polymer", reg)
+		}
+	}
 }
