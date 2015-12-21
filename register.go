@@ -65,11 +65,13 @@ func Register(proto Interface) {
 	// Setup properties
 	properties := js.M{}
 	for _, tag := range tags {
-		curr := js.M{}
-		curr["type"] = getJsType(refType.Elem().Field(tag.FieldIndex).Type)
-		curr["notify"] = true
+		if tag.Bind {
+			curr := js.M{}
+			curr["type"] = getJsType(refType.Elem().Field(tag.FieldIndex).Type)
+			curr["notify"] = true
 
-		properties[getJsName(tag.FieldName)] = curr
+			properties[getJsName(tag.FieldName)] = curr
+		}
 	}
 	m["properties"] = properties
 

@@ -102,7 +102,7 @@ func parseTags(refType reflect.Type) []*fieldTag {
 			FieldName:  field.Name,
 		}
 
-		for i := 1; i < len(tag); i++ {
+		for i := 0; i < len(tag); i++ {
 			switch tag[i] {
 			case "bind":
 				f.Bind = true

@@ -77,7 +77,9 @@ func readyCallback() *js.Object {
 				fieldVal.Set(currVal.Elem())
 			}
 
-			this.Call("addEventListener", getJsPropertyChangedEvent(tag.FieldName), propertyChangeCallback(tag))
+			if tag.Bind {
+				this.Call("addEventListener", getJsPropertyChangedEvent(tag.FieldName), propertyChangeCallback(tag))
+			}
 		}
 
 		// Call the proto side callback for user hooks
