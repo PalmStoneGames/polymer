@@ -38,8 +38,10 @@ func createdCallback(refType reflect.Type, tags []*fieldTag) *js.Object {
 		this.Set(protoIndexKey, len(jsMap)-1)
 
 		// Set data on the proto
-		proto.data().object = this
-		proto.data().tags = tags
+		data := proto.data()
+		data.this = this
+		data.Element = WrapJSElement(this)
+		data.tags = tags
 
 		// Call the proto side callback for user hooks
 		proto.Created()

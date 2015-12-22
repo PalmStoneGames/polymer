@@ -59,10 +59,6 @@ type Interface interface {
 	// PropertyChanged is called when polymer detects a property change on a property
 	PropertyChanged(fieldName string, e *PropertyChangedEvent)
 
-	// Notify notifies polymer that a value has changed
-	// TODO: Change Notify to accept a pointer to the field that changed instead of a path and a value, we're waiting on https://github.com/gopherjs/gopherjs/issues/364 for this
-	Notify(path string, val interface{})
-
 	// Internal utility
 	data() *Proto
 }
@@ -72,30 +68,6 @@ type fieldTag struct {
 	FieldName  string
 	Bind       bool
 }
-
-// Proto represents a prototype for a polymer type
-// it's meant to be embedded by the structures used to implements polymer tags
-type Proto struct {
-	object *js.Object
-	tags   []*fieldTag
-}
-
-func (p *Proto) Extends() string { return "" }
-
-func (p *Proto) Created()  {}
-func (p *Proto) Ready()    {}
-func (p *Proto) Attached() {}
-func (p *Proto) Detached() {}
-
-func (p *Proto) PropertyChanged(fieldName string, e *PropertyChangedEvent) {}
-
-// Notify notifies polymer that a value has changed
-// TODO: Change Notify to accept a pointer to the field that changed instead of a path and a value, we're waiting on https://github.com/gopherjs/gopherjs/issues/364 for this
-func (p *Proto) Notify(path string, val interface{}) {
-	p.object.Call("notifyPath", getJsName(path), val)
-}
-
-func (p *Proto) data() *Proto { return p }
 
 func parseTags(refType reflect.Type) []*fieldTag {
 	var tags []*fieldTag
@@ -137,4 +109,29 @@ func parseHandlers(refType reflect.Type) []reflect.Method {
 	}
 
 	return handlers
+}
+
+// Proto represents a prototype for a polymer type
+// it's meant to be embedded by the structures used to implements polymer tags
+type Proto struct {
+	this *js.Object
+	Element
+	tags []*fieldTag
+}
+
+func (p *Proto) Extends() string { return "" }
+
+func (p *Proto) Created()  {}
+func (p *Proto) Ready()    {}
+func (p *Proto) Attached() {}
+func (p *Proto) Detached() {}
+
+func (p *Proto) PropertyChanged(fieldName string, e *PropertyChangedEvent) {}
+
+func (p *Proto) data() *Proto { return p }
+
+// Notify notifies polymer that a value has changed
+// TODO: Change Notify to accept a pointer to the field that changed instead of a path and a value, we're waiting on https://github.com/gopherjs/gopherjs/issues/364 for this
+func (p *Proto) Notify(path string, val interface{}) {
+	p.Element.Underlying().Call("notifyPath", getJsName(path), val)
 }
