@@ -78,14 +78,14 @@ func Register(proto Interface) {
 			curr["type"] = getJsType(refType.Elem().Field(tag.FieldIndex).Type)
 			curr["notify"] = true
 
-			properties[getJsName(tag.FieldName)] = curr
+			properties[tag.FieldName] = curr
 		}
 	}
 	m["properties"] = properties
 
 	// Setup handlers
 	for _, handler := range handlers {
-		m[getJsName(handler.Name)] = handlerCallback(handler)
+		m[handler.Name] = handlerCallback(handler)
 	}
 
 	// Register our prototype with polymer

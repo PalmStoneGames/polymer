@@ -61,12 +61,11 @@ func readyCallback() *js.Object {
 			// Get field info first
 			fieldVal := refVal.Elem().Field(tag.FieldIndex)
 			fieldType := fieldVal.Type()
-			jsFieldName := getJsName(tag.FieldName)
 
 			// Set the value on a dummy first, we compare it with the zero value after to decide whether to set the field from js or read it from Go
 			currVal := reflect.New(fieldType)
 			zeroVal := reflect.Zero(fieldType)
-			if err := Decode(this.Get(jsFieldName), currVal.Interface()); err != nil {
+			if err := Decode(this.Get(tag.FieldName), currVal.Interface()); err != nil {
 				panic(fmt.Sprintf("Error while decoding polymer field value for %v: %v", tag.FieldName, err))
 			}
 
@@ -74,7 +73,7 @@ func readyCallback() *js.Object {
 			// If the value read from js is the zero value, we do go -> js
 			// otherwise, we do js -> go
 			if currVal.Elem().Interface() == zeroVal.Interface() {
-				this.Set(jsFieldName, fieldVal.Interface())
+				this.Set(tag.FieldName, fieldVal.Interface())
 			} else {
 				fieldVal.Set(currVal.Elem())
 			}

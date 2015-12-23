@@ -19,10 +19,9 @@ package polymer
 import (
 	"reflect"
 	"regexp"
-	"strings"
 
 	"github.com/gopherjs/gopherjs/js"
-	"unicode"
+	"strings"
 )
 
 var propertyEventNameRegExp *regexp.Regexp
@@ -50,21 +49,6 @@ func getJsType(t reflect.Type) *js.Object {
 	}
 }
 
-func getJsName(fieldName string) string {
-	endIndex := len(fieldName) - 1
-	newFieldName := ""
-	for i, rune := range fieldName {
-		newFieldName += string(unicode.ToLower(rune))
-		if unicode.IsLower(rune) {
-			endIndex = i
-			break
-		}
-	}
-
-	newFieldName += fieldName[endIndex+1:]
-	return newFieldName
-}
-
 func getJsPropertyChangedEvent(fieldName string) string {
-	return strings.ToLower(propertyEventNameRegExp.ReplaceAllString(fieldName, "$1-$2")) + "-changed"
+	return strings.ToLower(js.Global.Get("Polymer").Get("CaseMap").Call("camelToDashCase", fieldName).String()) + "-changed"
 }
