@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	"code.palmstonegames.com/polymer"
-	"honnef.co/go/js/dom"
 )
 
 func init() {
@@ -20,7 +19,7 @@ func (t *TableLayout) TagName() string {
 }
 
 func (t *TableLayout) Ready() {
-	document := dom.GetWindow().Document()
+	document := polymer.GetWindow().Document()
 	shadowRoot := t.Root()
 	for i := 1; i <= 10; i++ {
 		el := document.CreateElement("div")

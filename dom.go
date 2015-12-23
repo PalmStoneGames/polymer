@@ -21,6 +21,8 @@ import (
 	"honnef.co/go/js/dom"
 )
 
+var domAPIConstructor *js.Object
+
 // FlushDOM flushes pending changes to the DOM
 // Insert, append, and remove operations are transacted lazily in certain cases for performance.
 // In order to interrogate the DOM (for example, offsetHeight, getComputedStyle, etc.) immediately after one of these operations, call this function first.
@@ -29,6 +31,17 @@ func FlushDOM() {
 }
 
 func WrapDOMElement(el dom.Element) Element {
+	// Check if the element is already wrapped, if so, avoid double-wrapping it
+	if isWrapped(el.Underlying()) {
+		// Try and cast the dom.Element to a polymer.Element, if it works, just return that
+		// Otherwise, wrap it in a PolymerWrappedElement directly without wrapping the js element, as it's already wrapped
+		if newEl, ok := el.(Element); ok {
+			return newEl
+		} else {
+			return &PolymerWrappedElement{el}
+		}
+	}
+
 	return WrapJSElement(el.Underlying())
 }
 
@@ -37,11 +50,28 @@ func WrapJSElement(obj *js.Object) Element {
 		return nil
 	}
 
-	return &BasicElement{dom.WrapElement(polymerDOM(obj))}
+	return &PolymerWrappedElement{dom.WrapElement(polymerDOM(obj))}
 }
 
 func polymerDOM(obj *js.Object) *js.Object {
+	// Check if the element is already wrapped, if so, avoid double-wrapping it
+	if isWrapped(obj) {
+		return obj
+	}
+
 	return js.Global.Get("Polymer").Call("dom", obj)
+}
+
+func isWrapped(obj *js.Object) bool {
+	if domAPIConstructor == nil || domAPIConstructor == js.Undefined {
+		domAPIConstructor = js.Global.Get("Polymer").Get("DomApi").Get("constructor")
+	}
+
+	if domAPIConstructor == nil || domAPIConstructor == js.Undefined {
+		panic("Polymer has not correctly initialized yet")
+	}
+
+	return obj.Get("constructor") == domAPIConstructor
 }
 
 func objToNodeSlice(obj *js.Object) []dom.Node {
@@ -68,6 +98,63 @@ func objToElementSlice(obj *js.Object) []Element {
 	}
 
 	return nodes
+}
+
+func GetWindow() dom.Window {
+	return window{dom.GetWindow()}
+}
+
+type window struct {
+	dom.Window
+}
+
+func (w window) Document() dom.Document {
+	doc := w.Window.Document()
+	return &document{
+		Document:       doc,
+		wrappedElement: WrapDOMElement(doc.DocumentElement()),
+	}
+}
+
+type document struct {
+	dom.Document
+	wrappedElement dom.Element
+}
+
+func (d *document) CreateElement(name string) dom.Element {
+	return WrapDOMElement(d.Document.CreateElement(name))
+}
+
+func (d *document) CreateElementNS(namespace, name string) dom.Element {
+	return WrapDOMElement(d.Document.CreateElementNS(namespace, name))
+}
+
+func (d *document) ElementFromPoint(x, y int) dom.Element {
+	return WrapDOMElement(d.Document.ElementFromPoint(x, y))
+}
+
+func (d *document) GetElementByID(id string) dom.Element {
+	return d.wrappedElement.QuerySelector("#" + id)
+}
+
+func (d *document) GetElementsByClassName(name string) []dom.Element {
+	return d.wrappedElement.QuerySelectorAll("." + name)
+}
+
+func (d *document) GetElementsByTagName(name string) []dom.Element {
+	return d.wrappedElement.QuerySelectorAll(name)
+}
+
+func (d *document) GetElementsByTagNameNS(ns, name string) []dom.Element {
+	panic("Operation not supported")
+}
+
+func (d *document) QuerySelector(sel string) dom.Element {
+	return d.wrappedElement.QuerySelector(sel)
+}
+
+func (d *document) QuerySelectorAll(sel string) []dom.Element {
+	return d.wrappedElement.QuerySelectorAll(sel)
 }
 
 type Element interface {
@@ -117,8 +204,29 @@ type Element interface {
 	UnobserveNodes(*Observer)
 }
 
-type BasicElement struct {
+type PolymerWrappedElement struct {
 	dom.Element
+}
+
+func (el *PolymerWrappedElement) GetElementsByClassName(name string) []dom.Element {
+	return el.QuerySelectorAll("." + name)
+}
+
+func (el *PolymerWrappedElement) GetElementsByTagName(name string) []dom.Element {
+	return el.QuerySelectorAll(name)
+}
+
+func (el *PolymerWrappedElement) GetElementsByTagNameNS(ns, name string) []dom.Element {
+	panic("Operation not supported")
+}
+
+func (el *PolymerWrappedElement) AppendChild(node dom.Node) {
+	obj := node.Underlying()
+	if obj.Get("constructor") == js.Global.Get("Polymer").Get("DomApi").Get("constructor") {
+		obj = obj.Get("node")
+	}
+
+	el.Element.AppendChild(dom.WrapElement(obj))
 }
 
 // ObservationInfo is the structure used to hand data to ObserveNodes callbacks
@@ -135,7 +243,7 @@ type Observer struct {
 }
 
 // Root returns the local DOM root of the current element
-func (el *BasicElement) Root() Element {
+func (el *PolymerWrappedElement) Root() Element {
 	// root is set on the polymer element, but not on
 	return WrapJSElement(el.Underlying().Get("node").Get("root"))
 }
@@ -143,54 +251,54 @@ func (el *BasicElement) Root() Element {
 // GetDistributedNodes returns the nodes distributed to a <content> insertion point
 // only returns useful results when called on a <content> element
 // Details can be found at https://www.polymer-project.org/1.0/docs/devguide/local-dom.html#distributed-children
-func (el *BasicElement) GetDistributedNodes() []dom.Node {
+func (el *PolymerWrappedElement) GetDistributedNodes() []dom.Node {
 	return objToNodeSlice(el.Underlying().Call("getDistributedNodes"))
 }
 
 // GetDestinationInsertionPoints returns the <content> nodes this element will be distributed to
 // only returns useful results when called on an element that’s being distributed.
 // Details can be found at https://www.polymer-project.org/1.0/docs/devguide/local-dom.html#distributed-children
-func (el *BasicElement) GetDestinationInsertionPoints() []dom.Node {
+func (el *PolymerWrappedElement) GetDestinationInsertionPoints() []dom.Node {
 	return objToNodeSlice(el.Underlying().Call("getDestinationInsertionPoints"))
 }
 
 // GetContentChildNodes accepts a css selector that points to a <content> node and returns all nodes that have been distributed to it
 // Details can be found at https://www.polymer-project.org/1.0/docs/devguide/local-dom.html#distributed-children
-func (el *BasicElement) GetContentChildNodes(selector string) []dom.Node {
+func (el *PolymerWrappedElement) GetContentChildNodes(selector string) []dom.Node {
 	return objToNodeSlice(el.Underlying().Call("getContentChildNodes"))
 }
 
 // GetContentChildNodes accepts a css selector that points to a <content> node and returns all elements that have been distributed to it
 // Details can be found at https://www.polymer-project.org/1.0/docs/devguide/local-dom.html#distributed-children
-func (el *BasicElement) GetContentChildren(selector string) []Element {
+func (el *PolymerWrappedElement) GetContentChildren(selector string) []Element {
 	return objToElementSlice(el.Underlying().Call("getContentChildren"))
 }
 
 // GetEffectiveChildNodes returns a list of effective child nodes for this element.
 // Effective child nodes are the child nodes of the element, with any insertion points replaced by their distributed child nodes.
 // Details can be found at https://www.polymer-project.org/1.0/docs/devguide/local-dom.html#effective-children
-func (el *BasicElement) GetEffectiveChildNodes() []dom.Node {
+func (el *PolymerWrappedElement) GetEffectiveChildNodes() []dom.Node {
 	return objToNodeSlice(el.Underlying().Call("getEffectiveChildNodes"))
 }
 
 // GetEffectiveChildren returns a list of effective children for this element.
 // Effective children are the children of the element, with any insertion points replaced by their distributed children.
 // Details can be found at https://www.polymer-project.org/1.0/docs/devguide/local-dom.html#effective-children
-func (el *BasicElement) GetEffectiveChildren() []Element {
+func (el *PolymerWrappedElement) GetEffectiveChildren() []Element {
 	return objToElementSlice(el.Underlying().Call("getEffectiveChildren"))
 }
 
 // QueryEffectiveChildren returns the first effective child that matches the selector
 // Effective children are the children of the element, with any insertion points replaced by their distributed children.
 // Details can be found at https://www.polymer-project.org/1.0/docs/devguide/local-dom.html#effective-children
-func (el *BasicElement) QueryEffectiveChildren(selector string) Element {
+func (el *PolymerWrappedElement) QueryEffectiveChildren(selector string) Element {
 	return WrapJSElement(el.Underlying().Call("queryEffectiveChildren"))
 }
 
 // QueryAllEffectiveChildren returns a slice of effective children that match selector
 // Effective children are the children of the element, with any insertion points replaced by their distributed children.
 // Details can be found at https://www.polymer-project.org/1.0/docs/devguide/local-dom.html#effective-children
-func (el *BasicElement) QueryAllEffectiveChildren(selector string) []Element {
+func (el *PolymerWrappedElement) QueryAllEffectiveChildren(selector string) []Element {
 	return objToElementSlice(el.Underlying().Call("queryAllEffectiveChildren"))
 }
 
@@ -198,7 +306,7 @@ func (el *BasicElement) QueryAllEffectiveChildren(selector string) []Element {
 // ObserveNodes  behaves slightly differently depending on the node being observed:
 // - If the node being observed is a content node, the callback is called when the content node’s distributed children change.
 // - For any other node, the callback is called when the node’s effective children change.
-func (el *BasicElement) ObserveNodes(f func(*ObservationInfo)) *Observer {
+func (el *PolymerWrappedElement) ObserveNodes(f func(*ObservationInfo)) *Observer {
 	obs := &Observer{}
 	obs.Element = el
 	obs.object = el.Underlying().Call("observeNodes", wrapObserveNodesCallback(obs, f))
@@ -218,6 +326,6 @@ func wrapObserveNodesCallback(obs *Observer, f func(*ObservationInfo)) func(*js.
 }
 
 // UnobserveNodes stops an observer from receiving notifications
-func (el *BasicElement) UnobserveNodes(obs *Observer) {
+func (el *PolymerWrappedElement) UnobserveNodes(obs *Observer) {
 	el.Underlying().Call("unobserveNodes", obs.object)
 }
