@@ -133,5 +133,5 @@ func (p *Proto) data() *Proto { return p }
 // Notify notifies polymer that a value has changed
 // TODO: Change Notify to accept a pointer to the field that changed instead of a path and a value, we're waiting on https://github.com/gopherjs/gopherjs/issues/364 for this
 func (p *Proto) Notify(path string, val interface{}) {
-	p.Element.Underlying().Call("notifyPath", getJsName(path), val)
+	p.this.Call("notifyPath", getJsName(path), val)
 }

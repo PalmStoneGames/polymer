@@ -19,7 +19,10 @@ package polymer
 import (
 	"reflect"
 
+	"fmt"
 	"github.com/gopherjs/gopherjs/js"
+	"github.com/xtgo/set"
+	"sort"
 )
 
 const protoIndexKey = "_polymer_protoIndex"
@@ -28,11 +31,16 @@ const protoIndexKey = "_polymer_protoIndex"
 var jsMap []Interface
 
 var (
-	webComponentsReady   = false
-	pendingRegistrations []js.M
+	webComponentsReady     = false
+	pendingGoRegistrations = make(map[string]js.M)
+	pendingJSRegistrations []string
 )
 
 func init() {
+	// Setup a global that can be called from js to register an element with us
+	js.Global.Set("PolymerGo", polymerGoCallback)
+
+	// Listen to the WebComponentsReady callback to actually register our events
 	js.Global.Get("window").Call("addEventListener", "WebComponentsReady", webComponentsReadyCallback)
 }
 
@@ -82,17 +90,55 @@ func Register(proto Interface) {
 
 	// Register our prototype with polymer
 	if webComponentsReady {
-		js.Global.Call("Polymer", m)
+		panic("polymer.Register call after WebComponentsReady has triggered")
 	} else {
-		pendingRegistrations = append(pendingRegistrations, m)
+		pendingGoRegistrations[proto.TagName()] = m
 	}
 }
 
 func webComponentsReadyCallback() {
-	if !webComponentsReady {
-		webComponentsReady = true
-		for _, reg := range pendingRegistrations {
-			js.Global.Call("Polymer", reg)
-		}
+	webComponentsReady = true
+
+	// Get all tag names for our Go side registrations
+	goTagNames := make([]string, len(pendingGoRegistrations))
+	i := 0
+	for _, reg := range pendingGoRegistrations {
+		goTagNames[i] = reg["is"].(string)
+		i++
 	}
+
+	// Setup a copy of the pendingJSRegistrations slice for use with the set package
+	// We don't want to lose our ordering
+	jsTagNames := make([]string, len(pendingJSRegistrations))
+	copy(jsTagNames, pendingJSRegistrations)
+
+	// Set up a set for the go and for the JS tag names
+	goSet := set.Strings(goTagNames)
+	jsSet := set.Strings(jsTagNames)
+
+	// Merge both and set up the pivots for use with the set package
+	var data []string
+	data = append(data, goSet...)
+	data = append(data, jsSet...)
+
+	diffs := data[:set.Diff(sort.StringSlice(data), len(goSet))]
+	if len(diffs) != 0 {
+		for _, diff := range diffs {
+			fmt.Printf("%v was not registered correctly\n", diff)
+		}
+		panic("Expected all registrations to be complete by the time the WebComponentsReady event triggers")
+	}
+
+	// Loop through the JS registrations and call Polymer()
+	for _, tagName := range pendingJSRegistrations {
+		js.Global.Call("Polymer", pendingGoRegistrations[tagName])
+	}
+}
+
+func polymerGoCallback(tagName string) {
+	if webComponentsReady {
+		panic("PolymerGo call after WebComponentsReady has triggered")
+	}
+
+	pendingJSRegistrations = append(pendingJSRegistrations, tagName)
 }

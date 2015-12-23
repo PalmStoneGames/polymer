@@ -50,6 +50,10 @@ func WrapJSElement(obj *js.Object) Element {
 		return nil
 	}
 
+	if isWrapped(obj) {
+		obj = obj.Get("node")
+	}
+
 	return &PolymerWrappedElement{dom.WrapElement(polymerDOM(obj))}
 }
 
@@ -244,7 +248,7 @@ type Observer struct {
 
 // Root returns the local DOM root of the current element
 func (el *PolymerWrappedElement) Root() Element {
-	// root is set on the polymer element, but not on
+	// root is set on the polymer element, but not on its wrapped equivalent, so drill through the wrapper to get the root
 	return WrapJSElement(el.Underlying().Get("node").Get("root"))
 }
 
