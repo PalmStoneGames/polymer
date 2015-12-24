@@ -145,42 +145,50 @@ func propertyChangeCallback(tag *fieldTag) *js.Object {
 	})
 }
 
+// reflectArgs builds up reflect args
+// We loop through the function arguments and use the types of each argument to decode the jsArgs
+// If the function has more arguments than we have jsArgs, they're passed in as Zero values
+// If the function has less arguments than jsArgs, the superfluous jsArgs are silently discarded
+func reflectArgs(handler reflect.Method, proto Interface, jsArgs []*js.Object) []reflect.Value {
+	reflectArgs := make([]reflect.Value, handler.Type.NumIn())
+	reflectArgs[0] = reflect.ValueOf(proto)
+	for i := 1; i < handler.Type.NumIn(); i++ {
+		argType := handler.Type.In(i)
+		var arg reflect.Value
+		if argType.Kind() == reflect.Ptr {
+			arg = reflect.New(argType.Elem())
+			reflectArgs[i] = arg
+		} else {
+			arg = reflect.New(argType)
+			reflectArgs[i] = arg.Elem()
+		}
+
+		if len(jsArgs) > i {
+			if err := Decode(jsArgs[i-1], arg.Interface()); err != nil {
+				panic(fmt.Sprintf("Error while decoding argument %v: %v", i, err))
+			}
+		}
+	}
+
+	return reflectArgs
+}
+
 func handlerCallback(handler reflect.Method) *js.Object {
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
 		f := func() {
-			// Lookup the proto
-			proto := jsMap[this.Get(protoIndexKey).Int()]
-
-			// Build up reflect args
-			// We loop through the function arguments and use the types of each argument to decode the jsArgs
-			// If the function has more arguments than we have jsArgs, they're passed in as Zero values
-			// If the function has less arguments than jsArgs, the superfluous jsArgs are silently discarded
-			reflectArgs := make([]reflect.Value, handler.Type.NumIn())
-			reflectArgs[0] = reflect.ValueOf(proto)
-			for i := 1; i < handler.Type.NumIn(); i++ {
-				argType := handler.Type.In(i)
-				var arg reflect.Value
-				if argType.Kind() == reflect.Ptr {
-					arg = reflect.New(argType.Elem())
-					reflectArgs[i] = arg
-				} else {
-					arg = reflect.New(argType)
-					reflectArgs[i] = arg.Elem()
-				}
-
-				if len(jsArgs) > i {
-					if err := Decode(jsArgs[i-1], arg.Interface()); err != nil {
-						panic(fmt.Sprintf("Error while decoding argument %v: %v", i, err))
-					}
-				}
-			}
-
-			handler.Func.Call(reflectArgs)
+			handler.Func.Call(reflectArgs(handler, jsMap[this.Get(protoIndexKey).Int()], jsArgs))
 		}
 
 		// We delay this call until after other event processing, this avoids user callbacks being called before our own processing
 		this.Call("async", f, 1)
 
 		return nil
+	})
+}
+
+func computeCallback(handler reflect.Method) *js.Object {
+	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
+		returnArgs := handler.Func.Call(reflectArgs(handler, jsMap[this.Get(protoIndexKey).Int()], jsArgs))
+		return returnArgs[0].Interface()
 	})
 }

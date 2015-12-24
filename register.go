@@ -23,6 +23,7 @@ import (
 	"github.com/gopherjs/gopherjs/js"
 	"github.com/xtgo/set"
 	"sort"
+	"strings"
 )
 
 const protoIndexKey = "_polymer_protoIndex"
@@ -58,7 +59,6 @@ func Register(proto Interface) {
 	}
 
 	// Parse info
-	handlers := parseHandlers(refType)
 	tags := parseTags(refType.Elem())
 
 	// Setup basics
@@ -84,8 +84,13 @@ func Register(proto Interface) {
 	m["properties"] = properties
 
 	// Setup handlers
-	for _, handler := range handlers {
+	for _, handler := range parseHandlers(refType) {
 		m[handler.Name] = handlerCallback(handler)
+	}
+
+	// Setup compute functions
+	for _, handler := range parseComputes(refType) {
+		m[handler.Name] = computeCallback(handler)
 	}
 
 	// Register our prototype with polymer
@@ -141,4 +146,66 @@ func polymerGoCallback(tagName string) {
 	}
 
 	pendingJSRegistrations = append(pendingJSRegistrations, tagName)
+}
+
+type fieldTag struct {
+	FieldIndex int
+	FieldName  string
+	Bind       bool
+}
+
+func parseTags(refType reflect.Type) []*fieldTag {
+	var tags []*fieldTag
+	for i := 0; i < refType.NumField(); i++ {
+		field := refType.Field(i)
+		tagText := field.Tag.Get("polymer")
+		if tagText == "" {
+			continue
+		}
+		tag := strings.Split(tagText, ",")
+
+		f := fieldTag{
+			FieldIndex: i,
+			FieldName:  field.Name,
+		}
+
+		for i := 0; i < len(tag); i++ {
+			switch tag[i] {
+			case "bind":
+				f.Bind = true
+			}
+		}
+
+		tags = append(tags, &f)
+	}
+
+	return tags
+}
+
+func parseHandlers(refType reflect.Type) []reflect.Method {
+	var handlers []reflect.Method
+
+	for i := 0; i < refType.NumMethod(); i++ {
+		method := refType.Method(i)
+
+		if strings.HasPrefix(method.Name, "Handle") {
+			handlers = append(handlers, method)
+		}
+	}
+
+	return handlers
+}
+
+func parseComputes(refType reflect.Type) []reflect.Method {
+	var handlers []reflect.Method
+
+	for i := 0; i < refType.NumMethod(); i++ {
+		method := refType.Method(i)
+
+		if strings.HasPrefix(method.Name, "Compute") {
+			handlers = append(handlers, method)
+		}
+	}
+
+	return handlers
 }
