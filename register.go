@@ -17,13 +17,13 @@ limitations under the License.
 package polymer
 
 import (
-	"reflect"
-
 	"fmt"
-	"github.com/gopherjs/gopherjs/js"
-	"github.com/xtgo/set"
+	"reflect"
 	"sort"
 	"strings"
+
+	"github.com/gopherjs/gopherjs/js"
+	"github.com/xtgo/set"
 )
 
 const protoIndexKey = "_polymer_protoIndex"
@@ -49,6 +49,10 @@ func init() {
 // Polymer will analyze the type and use it for the tag returned by TagName()
 // The type will then be instantiated automatically when tags corresponding to TagName are created through any method
 func Register(proto Interface) {
+	if webComponentsReady {
+		panic("polymer.Register call after WebComponentsReady has triggered")
+	}
+
 	// Type detection
 	refType := reflect.TypeOf(proto)
 	if refType.Kind() != reflect.Ptr {
@@ -58,30 +62,15 @@ func Register(proto Interface) {
 		panic("Expected proto to be a pointer to a struct")
 	}
 
-	// Parse info
-	tags := parseTags(refType.Elem())
-
 	// Setup basics
 	m := js.M{}
 	m["is"] = proto.TagName()
 	m["extends"] = proto.Extends()
-	m["created"] = createdCallback(refType, tags)
+	m["created"] = createdCallback(refType)
 	m["ready"] = readyCallback()
 	m["attached"] = attachedCallback()
 	m["detached"] = detachedCallback()
-
-	// Setup properties
-	properties := js.M{}
-	for _, tag := range tags {
-		if tag.Bind {
-			curr := js.M{}
-			curr["type"] = getJsType(refType.Elem().Field(tag.FieldIndex).Type)
-			curr["notify"] = true
-
-			properties[tag.FieldName] = curr
-		}
-	}
-	m["properties"] = properties
+	m["properties"] = parseProperties(refType)
 
 	// Setup handlers
 	for _, handler := range parseHandlers(refType) {
@@ -93,12 +82,11 @@ func Register(proto Interface) {
 		m[handler.Name] = computeCallback(handler)
 	}
 
+	// Setup observers
+	setObservers(refType, m)
+
 	// Register our prototype with polymer
-	if webComponentsReady {
-		panic("polymer.Register call after WebComponentsReady has triggered")
-	} else {
-		pendingGoRegistrations[proto.TagName()] = m
-	}
+	pendingGoRegistrations[proto.TagName()] = m
 }
 
 func webComponentsReadyCallback() {
@@ -148,38 +136,35 @@ func polymerGoCallback(tagName string) {
 	pendingJSRegistrations = append(pendingJSRegistrations, tagName)
 }
 
-type fieldTag struct {
-	FieldIndex int
-	FieldName  string
-	Bind       bool
-}
+func parseProperties(refType reflect.Type) js.M {
+	properties := js.M{}
 
-func parseTags(refType reflect.Type) []*fieldTag {
-	var tags []*fieldTag
+	refType = refType.Elem()
 	for i := 0; i < refType.NumField(); i++ {
-		field := refType.Field(i)
-		tagText := field.Tag.Get("polymer")
+		fieldType := refType.Field(i)
+		if fieldType.Anonymous && fieldType.Type == protoPtrStructType {
+			continue
+		}
+
+		tagText := fieldType.Tag.Get("polymer")
 		if tagText == "" {
 			continue
 		}
+
 		tag := strings.Split(tagText, ",")
-
-		f := fieldTag{
-			FieldIndex: i,
-			FieldName:  field.Name,
-		}
-
 		for i := 0; i < len(tag); i++ {
 			switch tag[i] {
 			case "bind":
-				f.Bind = true
+				properties[fieldType.Name] = js.M{
+					"type":   getJsType(refType.FieldByIndex(fieldType.Index).Type),
+					"notify": true,
+				}
 			}
 		}
 
-		tags = append(tags, &f)
 	}
 
-	return tags
+	return properties
 }
 
 func parseHandlers(refType reflect.Type) []reflect.Method {
@@ -208,4 +193,79 @@ func parseComputes(refType reflect.Type) []reflect.Method {
 	}
 
 	return handlers
+}
+
+func setObservers(refType reflect.Type, m js.M) {
+	observers := js.S{}
+	setObserversNested(refType.Elem(), m, &observers, nil)
+	m["observers"] = observers
+}
+
+func setObserversNested(refType reflect.Type, m js.M, observers *js.S, path []string) {
+	for i := 0; i < refType.NumField(); i++ {
+		field := refType.Field(i)
+
+		// If we're dealing with *polymer.Proto, skip
+		if field.Anonymous && field.Type == protoPtrStructType {
+			continue
+		}
+
+		currPath := make([]string, len(path)+1)
+		copy(currPath, path)
+		currPath[len(path)] = field.Name
+
+		// Check if this field has the bind fieldtag
+		bind := false
+		for _, tag := range strings.Split(field.Tag.Get("polymer"), ",") {
+			if tag == "bind" {
+				bind = true
+				break
+			}
+		}
+
+		// Figure out the kind and type
+		fieldType := field.Type
+		if fieldType.Kind() == reflect.Ptr {
+			fieldType = fieldType.Elem()
+		}
+
+		// Use the kind to decide what to do
+		switch fieldType.Kind() {
+		case reflect.Struct:
+			if bind {
+				funcName, bindStr := pathBind(currPath, "*")
+				*observers = append(*observers, bindStr)
+				m[funcName] = observeDeepCallback()
+			}
+
+			// Bind subfields if necessary
+			setObserversNested(fieldType, m, observers, currPath)
+		case reflect.Slice:
+			if bind {
+				funcName, bindStr := pathBind(currPath, "*")
+				*observers = append(*observers, bindStr)
+				m[funcName] = observeDeepCallback()
+			}
+		default:
+			// Add the current field if bound
+			if bind {
+				funcName, bindStr := pathBind(currPath, "")
+				*observers = append(*observers, bindStr)
+				m[funcName] = observeShallowCallback(currPath)
+			}
+		}
+	}
+
+	return
+}
+
+func pathBind(path []string, mode string) (string, string) {
+	funcName := fmt.Sprintf("observe_%v", strings.Join(path, "_"))
+	bindStr := strings.Join(path, ".")
+
+	if mode != "" {
+		bindStr = fmt.Sprintf("%v.%v", bindStr, mode)
+	}
+
+	return funcName, fmt.Sprintf("%v(%v)", funcName, bindStr)
 }

@@ -21,7 +21,6 @@ import (
 	"regexp"
 
 	"github.com/gopherjs/gopherjs/js"
-	"strings"
 )
 
 var propertyEventNameRegExp *regexp.Regexp
@@ -50,5 +49,5 @@ func getJsType(t reflect.Type) *js.Object {
 }
 
 func getJsPropertyChangedEvent(fieldName string) string {
-	return strings.ToLower(js.Global.Get("Polymer").Get("CaseMap").Call("camelToDashCase", fieldName).String()) + "-changed"
+	return js.Global.Get("Polymer").Get("CaseMap").Call("camelToDashCase", fieldName).String() + "-changed"
 }

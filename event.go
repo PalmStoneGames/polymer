@@ -17,7 +17,6 @@ limitations under the License.
 package polymer
 
 import (
-	"github.com/gopherjs/gopherjs/js"
 	"time"
 )
 
@@ -32,10 +31,4 @@ type Event struct {
 	CancelBubble     bool `polymer-decode:"cancelBubble"`
 
 	// TODO: Once we have DOM bindings, add srcElement, target and path
-}
-
-type PropertyChangedEvent struct {
-	Event
-	JSValue *js.Object `polymer-decode:"detail.value"`
-	Value   interface{}
 }

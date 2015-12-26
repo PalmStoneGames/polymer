@@ -53,8 +53,8 @@ type Interface interface {
 	// Details can be found at https://www.polymer-project.org/1.0/docs/devguide/registering-elements.html#lifecycle-callbacks
 	Detached()
 
-	// PropertyChanged is called when polymer detects a property change on a property
-	PropertyChanged(fieldName string, e *PropertyChangedEvent)
+	// Notify notifies polymer that a value has changed
+	Notify(path string, val interface{})
 
 	// Internal utility
 	data() *Proto
@@ -65,7 +65,6 @@ type Interface interface {
 type Proto struct {
 	this *js.Object
 	Element
-	tags []*fieldTag
 }
 
 func (p *Proto) Extends() string { return "" }
@@ -74,8 +73,6 @@ func (p *Proto) Created()  {}
 func (p *Proto) Ready()    {}
 func (p *Proto) Attached() {}
 func (p *Proto) Detached() {}
-
-func (p *Proto) PropertyChanged(fieldName string, e *PropertyChangedEvent) {}
 
 func (p *Proto) data() *Proto { return p }
 

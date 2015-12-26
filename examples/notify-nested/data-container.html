@@ -1,0 +1,30 @@
+<link rel="import" href="/bower_components/polymer/polymer.html">
+
+<dom-module id="data-container">
+	<style>
+		.container {
+			margin-bottom: 1rem;
+		}
+	</style>
+	<template>
+		<div class="container">
+			<b>Admin</b>
+			<div>Admin name: <input type="text" value="{{AdminData.Name::input}}" on-input="HandleInput" /></div>
+		</div>
+
+		<div class="container">
+			<b>Permissions</b>
+			<template is="dom-repeat" items="{{AdminData.Permissions}}">
+				<div>#{{index}} <input type="text" value="{{item::input}}" on-input="HandleInput" /></div>
+			</template>
+		</div>
+
+		<div class="container">
+			<b>Users</b>
+			<template is="dom-repeat" items="{{UsersData}}">
+				<div>#{{index}} <input type="text" value="{{item.Name::input}}" on-input="HandleInput" /></div>
+			</template>
+		</div>
+	</template>
+	<script>PolymerGo("data-container")</script>
+</dom-module>

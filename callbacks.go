@@ -19,11 +19,15 @@ package polymer
 import (
 	"fmt"
 	"reflect"
+	"strconv"
+	"strings"
 
 	"github.com/gopherjs/gopherjs/js"
 )
 
-func createdCallback(refType reflect.Type, tags []*fieldTag) *js.Object {
+var protoPtrStructType = reflect.TypeOf(&Proto{})
+
+func createdCallback(refType reflect.Type) *js.Object {
 	return js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		// Create a new Go side object
 		refVal := reflect.New(refType.Elem())
@@ -41,7 +45,6 @@ func createdCallback(refType reflect.Type, tags []*fieldTag) *js.Object {
 		data := proto.data()
 		data.this = this
 		data.Element = WrapJSElement(this)
-		data.tags = tags
 
 		// Call the proto side callback for user hooks
 		proto.Created()
@@ -54,36 +57,37 @@ func readyCallback() *js.Object {
 	return js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		// Lookup the proto
 		proto := jsMap[this.Get(protoIndexKey).Int()]
-		refVal := reflect.ValueOf(proto)
+		refVal := reflect.ValueOf(proto).Elem()
+		refType := reflect.TypeOf(proto).Elem()
 
-		// Set initial field values and register change events
-		for _, tag := range proto.data().tags {
+		// Set initial field values
+		for i := 0; i < refType.NumField(); i++ {
 			// Get field info first
-			fieldVal := refVal.Elem().Field(tag.FieldIndex)
-			fieldType := fieldVal.Type()
+			fieldVal := refVal.Field(i)
+			fieldType := refType.Field(i)
 
-			// Set the value on a dummy first, we compare it with the zero value after to decide whether to set the field from js or read it from Go
-			currVal := reflect.New(fieldType)
-			zeroVal := reflect.Zero(fieldType)
-			if err := Decode(this.Get(tag.FieldName), currVal.Interface()); err != nil {
-				panic(fmt.Sprintf("Error while decoding polymer field value for %v: %v", tag.FieldName, err))
+			if fieldType.Anonymous && fieldType.Type == protoPtrStructType {
+				continue
 			}
 
-			// Decide whether to do js -> go or go -> js
-			// If the value read from js is the zero value, we do go -> js
-			// otherwise, we do js -> go
-			if currVal.Elem().Interface() == zeroVal.Interface() {
-				this.Set(tag.FieldName, fieldVal.Interface())
+			// If the value in JS is set, we take it over
+			// Otherwise, we take over the (usually zeroed) go value and set it in JS
+			// We can get away with doing this for only first level values, as they'll either get decoded recursively if they were set
+			// Or they'll get set from Go in their entirety if they were undefined
+			jsVal := this.Get(fieldType.Name)
+			if jsVal == nil || jsVal == js.Undefined {
+				this.Set(fieldType.Name, fieldVal.Interface())
 			} else {
-				fieldVal.Set(currVal.Elem())
-			}
+				currVal := reflect.New(fieldType.Type)
+				if err := Decode(jsVal, currVal.Interface()); err != nil {
+					panic(fmt.Sprintf("Error while decoding polymer field value for %v: %v", fieldType.Name, err))
+				}
 
-			if tag.Bind {
-				this.Call("addEventListener", getJsPropertyChangedEvent(tag.FieldName), propertyChangeCallback(tag))
+				fieldVal.Set(currVal.Elem())
 			}
 		}
 
-		// Call the proto side callback for user hooks
+		// Call user hook
 		proto.Ready()
 
 		return nil
@@ -114,35 +118,41 @@ func detachedCallback() *js.Object {
 	})
 }
 
-func propertyChangeCallback(tag *fieldTag) *js.Object {
+func observeShallowCallback(path []string) *js.Object {
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
-		// Fetch the proto and refVal
-		proto := jsMap[this.Get(protoIndexKey).Int()]
-		refVal := reflect.ValueOf(proto)
-
-		// Decode the event
-		var e PropertyChangedEvent
-		if err := Decode(jsArgs[0], &e); err != nil {
-			panic(fmt.Sprintf("Error while decoding event: %v", err))
-		}
-
-		// Decode the value, it's left undecoded in the event because it can't be typed
-		// We have the field type however, so we can use the *js.Object for the value and then set the interface{} val
-		fieldType := reflect.TypeOf(proto).Elem().Field(tag.FieldIndex).Type
-		fieldVal := reflect.New(fieldType)
-		if err := Decode(e.JSValue, fieldVal.Interface()); err != nil {
-			panic(fmt.Sprintf("Error while decoding value: %v", err))
-		}
-
-		// Set the field on the Go side struct and on the event
-		refVal.Elem().Field(tag.FieldIndex).Set(fieldVal.Elem())
-		e.Value = fieldVal.Elem().Interface()
-
-		// Trigger NotifyPropertyChanged
-		proto.PropertyChanged(tag.FieldName, &e)
-
+		setObservedValue(jsMap[this.Get(protoIndexKey).Int()], path, jsArgs[0])
 		return nil
 	})
+}
+
+func observeDeepCallback() *js.Object {
+	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
+		record := jsArgs[0]
+		setObservedValue(jsMap[this.Get(protoIndexKey).Int()], strings.Split(record.Get("path").String(), "."), record.Get("value"))
+		return nil
+	})
+}
+
+func setObservedValue(proto Interface, path []string, val *js.Object) {
+	refVal := reflect.ValueOf(proto).Elem()
+	for _, curr := range path {
+		if curr[0] == '#' {
+			index, err := strconv.ParseInt(curr[1:], 10, 32)
+			if err != nil {
+				panic(err)
+			}
+
+			refVal = refVal.Index(int(index))
+		} else {
+			refVal = refVal.FieldByName(curr)
+		}
+
+		if refVal.Kind() == reflect.Ptr {
+			refVal = refVal.Elem()
+		}
+	}
+
+	decodeRaw(val, refVal)
 }
 
 // reflectArgs builds up reflect args
