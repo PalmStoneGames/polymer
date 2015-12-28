@@ -18,6 +18,8 @@ package polymer
 
 import (
 	"time"
+
+	"github.com/gopherjs/gopherjs/js"
 )
 
 type Event struct {
@@ -30,5 +32,12 @@ type Event struct {
 	Bubbles          bool `polymer-decode:"bubbles"`
 	CancelBubble     bool `polymer-decode:"cancelBubble"`
 
-	// TODO: Once we have DOM bindings, add srcElement, target and path
+	SourceElement Element   `polymer-decode:"srcElement"`
+	Target        Element   `polymer-decode:"target"`
+	Path          []Element `polymer-decode:"path"`
+}
+
+type PropertyChangedEvent struct {
+	Event
+	JSValue *js.Object `polymer-decode:"detail.value"`
 }

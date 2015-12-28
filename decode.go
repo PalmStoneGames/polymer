@@ -17,13 +17,15 @@ limitations under the License.
 package polymer
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"time"
 
-	"fmt"
 	"github.com/gopherjs/gopherjs/js"
 )
+
+var typeOfElement = reflect.TypeOf((*Element)(nil)).Elem()
 
 // Decode decodes a js object to the target
 // it watches for fields on the structure tagged with polymer-decode
@@ -70,7 +72,20 @@ func decodeRaw(jsVal *js.Object, refVal reflect.Value) error {
 	case reflect.Bool:
 		refVal.Set(reflect.ValueOf(jsVal.Bool()))
 	case reflect.Interface:
-		refVal.Set(reflect.ValueOf(jsVal.Interface()))
+		switch refVal.Type() {
+		case typeOfElement:
+			refVal.Set(reflect.ValueOf(WrapJSElement(jsVal)))
+		default:
+			refVal.Set(reflect.ValueOf(jsVal.Interface()))
+		}
+	case reflect.Slice:
+		length := jsVal.Length()
+		slice := reflect.MakeSlice(refVal.Type(), length, length)
+		for i := 0; i < length; i++ {
+			decodeRaw(jsVal.Index(i), slice.Index(i))
+		}
+
+		refVal.Set(slice)
 	case reflect.Struct:
 		switch refVal.Interface().(type) {
 		case time.Time:
@@ -84,8 +99,8 @@ func decodeRaw(jsVal *js.Object, refVal reflect.Value) error {
 		case *js.Object:
 			refVal.Set(reflect.ValueOf(jsVal))
 		default:
-			refVal.Set(reflect.Zero(refVal.Type()))
-			return Decode(jsVal, refVal.Elem().Interface())
+			refVal.Set(reflect.New(refVal.Type().Elem()))
+			return decodeRaw(jsVal, refVal.Elem())
 		}
 	default:
 		return fmt.Errorf("Do not know how to deal with kind %v while decoding data for field %v", refVal.Kind(), refVal.Type().Name)

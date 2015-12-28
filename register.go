@@ -74,12 +74,12 @@ func Register(proto Interface) {
 
 	// Setup handlers
 	for _, handler := range parseHandlers(refType) {
-		m[handler.Name] = handlerCallback(handler)
+		m[handler.Name] = eventHandlerCallback(handler.Func)
 	}
 
 	// Setup compute functions
 	for _, handler := range parseComputes(refType) {
-		m[handler.Name] = computeCallback(handler)
+		m[handler.Name] = computeCallback(handler.Func)
 	}
 
 	// Setup observers
@@ -142,7 +142,7 @@ func parseProperties(refType reflect.Type) js.M {
 	refType = refType.Elem()
 	for i := 0; i < refType.NumField(); i++ {
 		fieldType := refType.Field(i)
-		if fieldType.Anonymous && fieldType.Type == protoPtrStructType {
+		if fieldType.Anonymous && fieldType.Type == typeOfPtrProto {
 			continue
 		}
 
@@ -206,7 +206,7 @@ func setObserversNested(refType reflect.Type, m js.M, observers *js.S, path []st
 		field := refType.Field(i)
 
 		// If we're dealing with *polymer.Proto, skip
-		if field.Anonymous && field.Type == protoPtrStructType {
+		if field.Anonymous && field.Type == typeOfPtrProto {
 			continue
 		}
 

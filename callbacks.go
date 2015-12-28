@@ -25,7 +25,7 @@ import (
 	"github.com/gopherjs/gopherjs/js"
 )
 
-var protoPtrStructType = reflect.TypeOf(&Proto{})
+var typeOfPtrProto = reflect.TypeOf(&Proto{})
 
 func createdCallback(refType reflect.Type) *js.Object {
 	return js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
@@ -66,7 +66,7 @@ func readyCallback() *js.Object {
 			fieldVal := refVal.Field(i)
 			fieldType := refType.Field(i)
 
-			if fieldType.Anonymous && fieldType.Type == protoPtrStructType {
+			if fieldType.Anonymous && fieldType.Type == typeOfPtrProto {
 				continue
 			}
 
@@ -159,46 +159,52 @@ func setObservedValue(proto Interface, path []string, val *js.Object) {
 // We loop through the function arguments and use the types of each argument to decode the jsArgs
 // If the function has more arguments than we have jsArgs, they're passed in as Zero values
 // If the function has less arguments than jsArgs, the superfluous jsArgs are silently discarded
-func reflectArgs(handler reflect.Method, proto Interface, jsArgs []*js.Object) []reflect.Value {
-	reflectArgs := make([]reflect.Value, handler.Type.NumIn())
-	reflectArgs[0] = reflect.ValueOf(proto)
-	for i := 1; i < handler.Type.NumIn(); i++ {
-		argType := handler.Type.In(i)
-		var arg reflect.Value
-		if argType.Kind() == reflect.Ptr {
-			arg = reflect.New(argType.Elem())
-			reflectArgs[i] = arg
+func reflectArgs(handler reflect.Value, proto Interface, jsArgs []*js.Object) []reflect.Value {
+	handlerType := handler.Type()
+	reflectArgs := make([]reflect.Value, handlerType.NumIn())
+
+	jsIndex := 0
+	for goIndex := 0; goIndex < handlerType.NumIn(); goIndex++ {
+		argType := handlerType.In(goIndex)
+		if goIndex == 0 && len(reflectArgs) != 0 && argType == reflect.TypeOf(proto) {
+			reflectArgs[goIndex] = reflect.ValueOf(proto)
 		} else {
-			arg = reflect.New(argType)
-			reflectArgs[i] = arg.Elem()
+			argPtrVal := reflect.New(argType)
+			if len(jsArgs) > jsIndex {
+				if err := decodeRaw(jsArgs[jsIndex], argPtrVal.Elem()); err != nil {
+					panic(fmt.Sprintf("Error while decoding argument %v: %v", goIndex, err))
+				}
+			}
+
+			reflectArgs[goIndex] = argPtrVal.Elem()
+			jsIndex++
 		}
 
-		if len(jsArgs) > i {
-			if err := Decode(jsArgs[i-1], arg.Interface()); err != nil {
-				panic(fmt.Sprintf("Error while decoding argument %v: %v", i, err))
-			}
-		}
 	}
 
 	return reflectArgs
 }
 
-func handlerCallback(handler reflect.Method) *js.Object {
+func eventHandlerCallback(handler reflect.Value) *js.Object {
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
-		f := func() {
-			handler.Func.Call(reflectArgs(handler, jsMap[this.Get(protoIndexKey).Int()], jsArgs))
-		}
-
-		// We delay this call until after other event processing, this avoids user callbacks being called before our own processing
-		this.Call("async", f, 1)
-
+		handler.Call(reflectArgs(handler, jsMap[this.Get(protoIndexKey).Int()], jsArgs))
 		return nil
 	})
 }
 
-func computeCallback(handler reflect.Method) *js.Object {
+func eventChanCallback(handlerChan reflect.Value) *js.Object {
+	chanArgType := handlerChan.Type().Elem()
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
-		returnArgs := handler.Func.Call(reflectArgs(handler, jsMap[this.Get(protoIndexKey).Int()], jsArgs))
+		chanArg := reflect.New(chanArgType)
+		decodeRaw(jsArgs[0], chanArg.Elem())
+		handlerChan.Send(chanArg.Elem())
+		return nil
+	})
+}
+
+func computeCallback(handler reflect.Value) *js.Object {
+	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
+		returnArgs := handler.Call(reflectArgs(handler, jsMap[this.Get(protoIndexKey).Int()], jsArgs))
 		return returnArgs[0].Interface()
 	})
 }

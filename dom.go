@@ -17,8 +17,10 @@ limitations under the License.
 package polymer
 
 import (
+	"fmt"
 	"github.com/gopherjs/gopherjs/js"
 	"honnef.co/go/js/dom"
+	"reflect"
 )
 
 var domAPIConstructor *js.Object
@@ -206,6 +208,10 @@ type Element interface {
 	ObserveNodes(func(*ObservationInfo)) *Observer
 	// UnobserveNodes stops an observer from receiving notifications
 	UnobserveNodes(*Observer)
+
+	// SubscribeEvent subscribes to an event using the passed callback
+	// The callback may be strongly typed, the types will be automatically decoded
+	SubscribeEvent(event string, callback interface{}) *EventSubscribtion
 }
 
 type PolymerWrappedElement struct {
@@ -233,6 +239,42 @@ func (el *PolymerWrappedElement) AppendChild(node dom.Node) {
 	el.Element.AppendChild(dom.WrapElement(obj))
 }
 
+type EventSubscribtion struct {
+	event   string
+	funcObj *js.Object
+}
+
+func (el *PolymerWrappedElement) SubscribeEvent(event string, callback interface{}) *EventSubscribtion {
+	refVal := reflect.ValueOf(callback)
+	var funcObj *js.Object
+	switch refVal.Kind() {
+	case reflect.Func:
+		funcObj = eventHandlerCallback(refVal)
+	case reflect.Chan:
+		funcObj = eventChanCallback(refVal)
+	default:
+		panic(fmt.Sprint("Expected callback of kind %s or %s, but got %s", reflect.Func, reflect.Chan, refVal.Kind()))
+	}
+
+	sub := &EventSubscribtion{
+		event:   event,
+		funcObj: funcObj,
+	}
+
+	el.Underlying().Get("node").Call("addEventListener", event, sub.funcObj)
+	return sub
+}
+
+func (el *PolymerWrappedElement) UnsubscribeEvent(sub *EventSubscribtion) {
+	el.Underlying().Call("removeEventListener", sub.event, sub.funcObj)
+}
+
+// Root returns the local DOM root of the current element
+func (el *PolymerWrappedElement) Root() Element {
+	// root is set on the polymer element, but not on its wrapped equivalent, so drill through the wrapper to get the root
+	return WrapJSElement(el.Underlying().Get("node").Get("root"))
+}
+
 // ObservationInfo is the structure used to hand data to ObserveNodes callbacks
 type ObservationInfo struct {
 	Observer *Observer
@@ -244,12 +286,6 @@ type ObservationInfo struct {
 type Observer struct {
 	Element Element
 	object  *js.Object
-}
-
-// Root returns the local DOM root of the current element
-func (el *PolymerWrappedElement) Root() Element {
-	// root is set on the polymer element, but not on its wrapped equivalent, so drill through the wrapper to get the root
-	return WrapJSElement(el.Underlying().Get("node").Get("root"))
 }
 
 // GetDistributedNodes returns the nodes distributed to a <content> insertion point
