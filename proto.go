@@ -53,9 +53,6 @@ type Interface interface {
 	// Details can be found at https://www.polymer-project.org/1.0/docs/devguide/registering-elements.html#lifecycle-callbacks
 	Detached()
 
-	// Notify notifies polymer that a value has changed
-	Notify(path string, val interface{})
-
 	// Internal utility
 	data() *Proto
 }
@@ -79,4 +76,27 @@ func (p *Proto) data() *Proto { return p }
 // Notify notifies polymer that a value has changed
 func (p *Proto) Notify(path string, val interface{}) {
 	p.this.Call("set", path, val)
+}
+
+type AsyncHandle struct {
+	jsHandle *js.Object
+}
+
+// Async calls the given callback asynchronously.
+// If the specified wait time is -1, the callback will be ran with microtask timing (after the current method finishes, but before the next event from the event queue is processed)
+// Otherwise, its ran waitTime milliseconds in the future. A waitTime of 1 can be useful to run a callback after all events currently in the queue have been processed.
+// Returns a handle that can be used to cancel the task
+func (p *Proto) Async(waitTime int, f func()) *AsyncHandle {
+	handle := &AsyncHandle{}
+	if waitTime == -1 {
+		handle.jsHandle = p.this.Call("async", f)
+	} else {
+		handle.jsHandle = p.this.Call("async", f, waitTime)
+	}
+
+	return handle
+}
+
+func (p *Proto) CancelAsync(handle *AsyncHandle) {
+	p.this.Call("cancelAsync", handle.jsHandle)
 }

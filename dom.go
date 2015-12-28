@@ -211,7 +211,7 @@ type Element interface {
 
 	// SubscribeEvent subscribes to an event using the passed callback
 	// The callback may be strongly typed, the types will be automatically decoded
-	SubscribeEvent(event string, callback interface{}) *EventSubscribtion
+	SubscribeEvent(event string, callback interface{}) *EventSubscription
 }
 
 type PolymerWrappedElement struct {
@@ -239,34 +239,34 @@ func (el *PolymerWrappedElement) AppendChild(node dom.Node) {
 	el.Element.AppendChild(dom.WrapElement(obj))
 }
 
-type EventSubscribtion struct {
-	event   string
-	funcObj *js.Object
+type EventSubscription struct {
+	event      string
+	funcObj    *js.Object
+	chanRefVal reflect.Value
 }
 
-func (el *PolymerWrappedElement) SubscribeEvent(event string, callback interface{}) *EventSubscribtion {
+func (el *PolymerWrappedElement) SubscribeEvent(event string, callback interface{}) *EventSubscription {
 	refVal := reflect.ValueOf(callback)
-	var funcObj *js.Object
+	sub := &EventSubscription{event: event}
 	switch refVal.Kind() {
 	case reflect.Func:
-		funcObj = eventHandlerCallback(refVal)
+		sub.funcObj = eventHandlerCallback(refVal)
 	case reflect.Chan:
-		funcObj = eventChanCallback(refVal)
+		sub.funcObj = eventChanCallback(refVal)
+		sub.chanRefVal = refVal
 	default:
 		panic(fmt.Sprint("Expected callback of kind %s or %s, but got %s", reflect.Func, reflect.Chan, refVal.Kind()))
-	}
-
-	sub := &EventSubscribtion{
-		event:   event,
-		funcObj: funcObj,
 	}
 
 	el.Underlying().Get("node").Call("addEventListener", event, sub.funcObj)
 	return sub
 }
 
-func (el *PolymerWrappedElement) UnsubscribeEvent(sub *EventSubscribtion) {
+func (el *PolymerWrappedElement) UnsubscribeEvent(sub *EventSubscription) {
 	el.Underlying().Call("removeEventListener", sub.event, sub.funcObj)
+	if sub.chanRefVal.IsValid() {
+		sub.chanRefVal.Close()
+	}
 }
 
 // Root returns the local DOM root of the current element
