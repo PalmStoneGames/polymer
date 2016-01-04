@@ -2,9 +2,32 @@ Polymer examples
 =================
 
 Each subfolder contains a specific example case.
-They can be run by running `gopherjs build` inside the example sub directory.
-Followed by running `caddy` in the examples/ directory itself and then pointing your browser at `http://localhost:2015/example_name/`
-This ofcourse requires caddy and gopherjs.
 
-GopherJS can be retrieved by running `go get github.com/gopherjs/gopherjs`
-Caddy can be retrieved by running `go get github.com/mholt/caddy`
+Requires [GopherJs](https://github.com/gopherjs/gopherjs) and [Caddy](https://github.com/mholt/caddy). Instructions [below](#prerequisites).
+
+### Quickstart
+```
+$ cd examples
+$ ./build-all.sh
+$ caddy
+```
+Point browser to `http://localhost:2015` and navigate to any of the example directories.
+
+### Build specific example 
+```
+$ cd examples/example_name
+$ gopherjs build
+$ cd ..
+$ caddy
+```
+Point browser to `http://localhost:2015/example_name`
+
+### Prerequisites 
+GopherJS 
+```
+$ go get github.com/gopherjs/gopherjs
+```
+Caddy 
+```
+$ go get github.com/mholt/caddy
+```
