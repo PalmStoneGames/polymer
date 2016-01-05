@@ -21,11 +21,15 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/gopherjs/gopherjs/js"
 )
 
-var typeOfPtrProto = reflect.TypeOf(&Proto{})
+var (
+	typeOfPtrProto = reflect.TypeOf(&Proto{})
+	typeOfJsObject = reflect.TypeOf(&js.Object{})
+)
 
 func createdCallback(refType reflect.Type) *js.Object {
 	return js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
@@ -56,7 +60,7 @@ func createdCallback(refType reflect.Type) *js.Object {
 func readyCallback() *js.Object {
 	return js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		// Lookup the proto
-		proto := jsMap[this.Get(protoIndexKey).Int()]
+		proto := lookupProto(this)
 		refVal := reflect.ValueOf(proto).Elem()
 		refType := reflect.TypeOf(proto).Elem()
 
@@ -66,7 +70,24 @@ func readyCallback() *js.Object {
 			fieldVal := refVal.Field(i)
 			fieldType := refType.Field(i)
 
-			if fieldType.Anonymous && fieldType.Type == typeOfPtrProto {
+			// Ignore the *Proto and *BindProto anonymous field
+			if fieldType.Anonymous && (fieldType.Type == typeOfPtrProto || fieldType.Type == typeOfPtrBindProto) {
+				continue
+			}
+
+			// Special case check to not overwrite Model on dom-bind templates
+			if _, ok := proto.(*autoBindTemplate); ok && fieldType.Name == "Model" {
+				continue
+			}
+
+			// Skip unexported fields
+			var firstRune rune
+			for _, rune := range fieldType.Name {
+				firstRune = rune
+				break
+			}
+
+			if firstRune == unicode.ToLower(firstRune) {
 				continue
 			}
 
@@ -97,7 +118,7 @@ func readyCallback() *js.Object {
 func attachedCallback() *js.Object {
 	return js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		// Lookup the proto
-		proto := jsMap[this.Get(protoIndexKey).Int()]
+		proto := lookupProto(this)
 
 		// Call the proto side callback for user hooks
 		proto.Attached()
@@ -109,7 +130,7 @@ func attachedCallback() *js.Object {
 func detachedCallback() *js.Object {
 	return js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		// Lookup the proto
-		proto := jsMap[this.Get(protoIndexKey).Int()]
+		proto := lookupProto(this)
 
 		// Call the proto side callback for user hooks
 		proto.Detached()
@@ -120,7 +141,7 @@ func detachedCallback() *js.Object {
 
 func observeShallowCallback(path []string) *js.Object {
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
-		setObservedValue(jsMap[this.Get(protoIndexKey).Int()], path, jsArgs[0])
+		setObservedValue(lookupProto(this), path, jsArgs[0])
 		return nil
 	})
 }
@@ -128,12 +149,17 @@ func observeShallowCallback(path []string) *js.Object {
 func observeDeepCallback() *js.Object {
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
 		record := jsArgs[0]
-		setObservedValue(jsMap[this.Get(protoIndexKey).Int()], strings.Split(record.Get("path").String(), "."), record.Get("value"))
+		setObservedValue(lookupProto(this), strings.Split(record.Get("path").String(), "."), record.Get("value"))
 		return nil
 	})
 }
 
 func setObservedValue(proto Interface, path []string, val *js.Object) {
+	// Special case work-around so we don't overwrite the Model field in an autoBindTemplate
+	if _, ok := proto.(*autoBindTemplate); ok && len(path) == 1 && path[0] == "Model" {
+		return
+	}
+
 	refVal := reflect.ValueOf(proto).Elem()
 	for _, curr := range path {
 		if curr[0] == '#' {
@@ -159,7 +185,7 @@ func setObservedValue(proto Interface, path []string, val *js.Object) {
 // We loop through the function arguments and use the types of each argument to decode the jsArgs
 // If the function has more arguments than we have jsArgs, they're passed in as Zero values
 // If the function has less arguments than jsArgs, the superfluous jsArgs are silently discarded
-func reflectArgs(handler reflect.Value, proto Interface, jsArgs []*js.Object) []reflect.Value {
+func reflectArgs(handler reflect.Value, proto interface{}, jsArgs []*js.Object) []reflect.Value {
 	handlerType := handler.Type()
 	reflectArgs := make([]reflect.Value, handlerType.NumIn())
 
@@ -187,7 +213,12 @@ func reflectArgs(handler reflect.Value, proto Interface, jsArgs []*js.Object) []
 
 func eventHandlerCallback(handler reflect.Value) *js.Object {
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
-		handler.Call(reflectArgs(handler, jsMap[this.Get(protoIndexKey).Int()], jsArgs))
+		proto := lookupProto(this)
+		if autoBind, ok := proto.(*autoBindTemplate); ok {
+			handler.Call(reflectArgs(handler, autoBind.Model, jsArgs))
+		} else {
+			handler.Call(reflectArgs(handler, proto, jsArgs))
+		}
 		return nil
 	})
 }
@@ -204,7 +235,14 @@ func eventChanCallback(handlerChan reflect.Value) *js.Object {
 
 func computeCallback(handler reflect.Value) *js.Object {
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
-		returnArgs := handler.Call(reflectArgs(handler, jsMap[this.Get(protoIndexKey).Int()], jsArgs))
+		proto := lookupProto(this)
+		var returnArgs []reflect.Value
+		if autoBind, ok := proto.(*autoBindTemplate); ok {
+			returnArgs = handler.Call(reflectArgs(handler, autoBind.Model, jsArgs))
+		} else {
+			returnArgs = handler.Call(reflectArgs(handler, proto, jsArgs))
+		}
+
 		return returnArgs[0].Interface()
 	})
 }

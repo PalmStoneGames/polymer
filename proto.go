@@ -17,6 +17,8 @@ limitations under the License.
 package polymer
 
 import (
+	"reflect"
+
 	"github.com/gopherjs/gopherjs/js"
 )
 
@@ -53,6 +55,9 @@ type Interface interface {
 	// Details can be found at https://www.polymer-project.org/1.0/docs/devguide/registering-elements.html#lifecycle-callbacks
 	Detached()
 
+	// Notify notifies polymer that a value has changed
+	Notify(path string, val interface{})
+
 	// Internal utility
 	data() *Proto
 }
@@ -73,9 +78,34 @@ func (p *Proto) Detached() {}
 
 func (p *Proto) data() *Proto { return p }
 
+// This returns the underlying js object corresponding to the `this` magic value in javascript
+// Unlike Underlying(), this object is not wrapped by Polymer.dom()
+func (p *Proto) This() *js.Object { return p.this }
+
 // Notify notifies polymer that a value has changed
 func (p *Proto) Notify(path string, val interface{}) {
+	// Special handling for BindInterface, the way it embeds structs confuses gopherJS and makes it pass the wrong data along
+	if bindProto, ok := val.(BindInterface); ok {
+		m := js.M{}
+		val = m
+
+		refVal := reflect.ValueOf(bindProto).Elem()
+		refType := refVal.Type()
+		for i := 0; i < refType.NumField(); i++ {
+			field := refType.Field(i)
+			if field.Anonymous {
+				continue
+			}
+
+			m[field.Name] = refVal.Field(i).Interface()
+		}
+	}
+
 	p.this.Call("set", path, val)
+}
+
+func (p *Proto) Fire(event string, val interface{}) {
+	p.this.Call("fire", event, val)
 }
 
 type AsyncHandle struct {

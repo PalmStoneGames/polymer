@@ -75,8 +75,6 @@ func decodeRaw(jsVal *js.Object, refVal reflect.Value) error {
 		switch refVal.Type() {
 		case typeOfElement:
 			refVal.Set(reflect.ValueOf(WrapJSElement(jsVal)))
-		default:
-			refVal.Set(reflect.ValueOf(jsVal.Interface()))
 		}
 	case reflect.Slice:
 		length := jsVal.Length()
@@ -119,7 +117,18 @@ func decodeStruct(jsVal *js.Object, refVal reflect.Value) error {
 
 		// Check if the field is anonymous, if so, go through it as if it was at this level
 		if fieldType.Anonymous {
-			decodeStruct(jsVal, fieldVal)
+			if fieldType.Type != typeOfPtrProto && fieldType.Type != typeOfPtrBindProto {
+				if fieldType.Type.Kind() == reflect.Ptr {
+					// Skip nil anonymous ptr fields
+					if fieldVal.IsNil() {
+						continue
+					}
+
+					fieldVal = fieldVal.Elem()
+				}
+
+				decodeStruct(jsVal, fieldVal)
+			}
 			continue
 		}
 

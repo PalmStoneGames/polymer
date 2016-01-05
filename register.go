@@ -23,34 +23,53 @@ import (
 	"strings"
 
 	"github.com/gopherjs/gopherjs/js"
-	"github.com/xtgo/set"
 )
 
 const protoIndexKey = "_polymer_protoIndex"
 
-//TODO: Use an opaque object set on this instead of a slice, the slice doesn't allow the proto nor js object to ever get freed
-var jsMap []Interface
-
 var (
+	//TODO: Use an opaque object set on this instead of a slice, the slice doesn't allow the proto nor js object to ever get freed
+	jsMap                  []Interface
 	webComponentsReady     = false
 	pendingGoRegistrations = make(map[string]js.M)
 	pendingJSRegistrations []string
+	onReadyChans           []chan struct{}
 )
+
+// CustomRegistrationAttrs can be used to pass custom attributes to the generated javascript prototype
+type CustomRegistrationAttr struct {
+	Name  string
+	Value interface{}
+}
 
 func init() {
 	// Setup a global that can be called from js to register an element with us
-	js.Global.Set("PolymerGo", polymerGoCallback)
+	js.Global.Set("PolymerGo", polymerGo)
 
 	// Listen to the WebComponentsReady callback to actually register our events
 	js.Global.Get("window").Call("addEventListener", "WebComponentsReady", webComponentsReadyCallback)
 }
 
+func lookupProto(obj *js.Object) Interface {
+	index := obj.Get(protoIndexKey)
+	if index == js.Undefined || index == nil {
+		panic("protoIndexKey not found")
+	}
+
+	return jsMap[index.Int()]
+}
+
 // Register makes polymer aware of a certain type
 // Polymer will analyze the type and use it for the tag returned by TagName()
 // The type will then be instantiated automatically when tags corresponding to TagName are created through any method
-func Register(proto Interface) {
+func Register(proto Interface, customAttrs ...CustomRegistrationAttr) {
 	if webComponentsReady {
 		panic("polymer.Register call after WebComponentsReady has triggered")
+	}
+
+	tagName := proto.TagName()
+	if !strings.Contains(tagName, "-") {
+		panic("Tagnames must contain a dash according to polymer's standards for custom elements")
 	}
 
 	// Type detection
@@ -64,7 +83,7 @@ func Register(proto Interface) {
 
 	// Setup basics
 	m := js.M{}
-	m["is"] = proto.TagName()
+	m["is"] = tagName
 	m["extends"] = proto.Extends()
 	m["created"] = createdCallback(refType)
 	m["ready"] = readyCallback()
@@ -85,8 +104,20 @@ func Register(proto Interface) {
 	// Setup observers
 	setObservers(refType, m)
 
+	// Custom attributes
+	for _, attr := range customAttrs {
+		m[attr.Name] = attr.Value
+	}
+
 	// Register our prototype with polymer
 	pendingGoRegistrations[proto.TagName()] = m
+}
+
+// OnReady returns a channel that will be closed once polymer has been initialized
+func OnReady() <-chan struct{} {
+	c := make(chan struct{})
+	onReadyChans = append(onReadyChans, c)
+	return c
 }
 
 func webComponentsReadyCallback() {
@@ -105,32 +136,66 @@ func webComponentsReadyCallback() {
 	jsTagNames := make([]string, len(pendingJSRegistrations))
 	copy(jsTagNames, pendingJSRegistrations)
 
-	// Set up a set for the go and for the JS tag names
-	goSet := set.Strings(goTagNames)
-	jsSet := set.Strings(jsTagNames)
+	sort.Sort(sort.StringSlice(goTagNames))
+	sort.Sort(sort.StringSlice(jsTagNames))
 
-	// Merge both and set up the pivots for use with the set package
-	var data []string
-	data = append(data, goSet...)
-	data = append(data, jsSet...)
-
-	diffs := data[:set.Diff(sort.StringSlice(data), len(goSet))]
-	if len(diffs) != 0 {
-		for _, diff := range diffs {
-			fmt.Printf("%v was not registered correctly\n", diff)
+	i = 0
+	j := 0
+	var jsOnlyRegistration []string
+	var goOnlyRegistration []string
+	var fullRegistration []string
+	for i < len(goTagNames) && j < len(jsTagNames) {
+		if goTagNames[i] < jsTagNames[j] { // Present in go but not js
+			goOnlyRegistration = append(goOnlyRegistration, goTagNames[i])
+			i++
+		} else if jsTagNames[j] < goTagNames[i] { // Present in js but not go
+			jsOnlyRegistration = append(jsOnlyRegistration, jsTagNames[j])
+			j++
+		} else { // Present in both
+			fullRegistration = append(fullRegistration, goTagNames[i])
+			i++
+			j++
 		}
-		panic("Expected all registrations to be complete by the time the WebComponentsReady event triggers")
+	}
+	for ; i < len(goTagNames); i++ {
+		goOnlyRegistration = append(goOnlyRegistration, goTagNames[i])
+	}
+	for ; j < len(jsTagNames); j++ {
+		jsOnlyRegistration = append(jsOnlyRegistration, jsTagNames[j])
 	}
 
+	// Check for JS only registrations, those are invalid
+	for _, tagName := range jsOnlyRegistration {
+		fmt.Printf("Error: '%v' is registered through PolymerGo(), but polymer.Register() was never called for it.", tagName)
+	}
+	if len(jsOnlyRegistration) != 0 {
+		panic("All tags registered through PolymerGo must have polymer.Register() called for them")
+	}
+
+	// process all JS registrations in order, and then all the go only ones
 	// Loop through the JS registrations and call Polymer()
 	for _, tagName := range pendingJSRegistrations {
 		js.Global.Call("Polymer", pendingGoRegistrations[tagName])
 	}
+
+	// Register Go only elements as well
+	for _, tagName := range goOnlyRegistration {
+		js.Global.Call("Polymer", pendingGoRegistrations[tagName])
+	}
+
+	// Close all ready chans
+	for _, c := range onReadyChans {
+		close(c)
+	}
 }
 
-func polymerGoCallback(tagName string) {
+func polymerGo(tagName string) {
 	if webComponentsReady {
 		panic("PolymerGo call after WebComponentsReady has triggered")
+	}
+
+	if !strings.Contains(tagName, "-") {
+		panic("Tagnames must contain a dash according to polymer's standards for custom elements")
 	}
 
 	pendingJSRegistrations = append(pendingJSRegistrations, tagName)
@@ -225,6 +290,12 @@ func setObserversNested(refType reflect.Type, m js.M, observers *js.S, path []st
 
 		// Figure out the kind and type
 		fieldType := field.Type
+		// Skip *js.Object
+		if fieldType == typeOfJsObject {
+			continue
+		}
+
+		// Deserialize pointer
 		if fieldType.Kind() == reflect.Ptr {
 			fieldType = fieldType.Elem()
 		}
@@ -237,8 +308,6 @@ func setObserversNested(refType reflect.Type, m js.M, observers *js.S, path []st
 				*observers = append(*observers, bindStr)
 				m[funcName] = observeDeepCallback()
 			}
-
-			// Bind subfields if necessary
 			setObserversNested(fieldType, m, observers, currPath)
 		case reflect.Slice:
 			if bind {

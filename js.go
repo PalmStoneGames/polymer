@@ -33,6 +33,10 @@ func init() {
 	}
 }
 
+func Log(args ...interface{}) {
+	js.Global.Get("console").Call("log", args...)
+}
+
 func getJsType(t reflect.Type) *js.Object {
 	switch t.Kind() {
 	case reflect.String:

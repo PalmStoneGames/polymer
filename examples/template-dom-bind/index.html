@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<script src="/bower_components/webcomponentsjs/webcomponents-lite.min.js"></script>
+	<script src="template-dom-bind.js"></script>
+	<link rel="import" href="/bower_components/polymer/polymer.html">
+</head>
+<body>
+	<template is="dom-bind-go" id="tmpl">
+		{{Model.RemainingTime}} - {{Model.Text}}<br />
+		The following text is using a computed binding: {{ComputeTime(Model.Clock)}}<br/>
+		<button type="button" on-click="HandleClick">This button triggers HandleClick</button>
+	</template>
+</body>
+</html>
