@@ -62,6 +62,16 @@ func (el *AutoBindGoTemplate) Bind(model BindInterface) {
 		jsObj.Set(handler.Name, computeCallback(handler.Func))
 	}
 
+	// Setup channel based event handlers
+	for _, handler := range parseChanHandlers(refType) {
+		// Create channel
+		chanVal := refVal.FieldByIndex(handler.Index)
+		chanVal.Set(reflect.MakeChan(chanVal.Type(), 0))
+
+		// Set handler function
+		jsObj.Set(handler.Name, eventChanCallback(chanVal))
+	}
+
 	// Set the needed data on Go side
 	proto.Model = model
 	model.data().this = jsObj

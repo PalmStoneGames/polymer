@@ -97,7 +97,9 @@ func (p *Proto) Notify(path string, val interface{}) {
 				continue
 			}
 
-			m[field.Name] = refVal.Field(i).Interface()
+			if field.Type.Kind() != reflect.Chan {
+				m[field.Name] = refVal.Field(i).Interface()
+			}
 		}
 	}
 

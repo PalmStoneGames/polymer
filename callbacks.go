@@ -50,6 +50,16 @@ func createdCallback(refType reflect.Type) *js.Object {
 		data.this = this
 		data.Element = WrapJSElement(this)
 
+		// Setup channel based event handlers
+		for _, handler := range parseChanHandlers(refType) {
+			// Create channel
+			chanVal := refVal.FieldByIndex(handler.Index)
+			chanVal.Set(reflect.MakeChan(chanVal.Type(), 0))
+
+			// Set handler function
+			this.Set(handler.Name, eventChanCallback(chanVal))
+		}
+
 		// Call the proto side callback for user hooks
 		proto.Created()
 
@@ -95,16 +105,18 @@ func readyCallback() *js.Object {
 			// Otherwise, we take over the (usually zeroed) go value and set it in JS
 			// We can get away with doing this for only first level values, as they'll either get decoded recursively if they were set
 			// Or they'll get set from Go in their entirety if they were undefined
-			jsVal := this.Get(fieldType.Name)
-			if jsVal == nil || jsVal == js.Undefined {
-				this.Set(fieldType.Name, fieldVal.Interface())
-			} else {
-				currVal := reflect.New(fieldType.Type)
-				if err := Decode(jsVal, currVal.Interface()); err != nil {
-					panic(fmt.Sprintf("Error while decoding polymer field value for %v: %v", fieldType.Name, err))
-				}
+			if fieldVal.Kind() != reflect.Chan {
+				jsVal := this.Get(fieldType.Name)
+				if jsVal == nil || jsVal == js.Undefined {
+					this.Set(fieldType.Name, fieldVal.Interface())
+				} else {
+					currVal := reflect.New(fieldType.Type)
+					if err := Decode(jsVal, currVal.Interface()); err != nil {
+						panic(fmt.Sprintf("Error while decoding polymer field value for %v: %v", fieldType.Name, err))
+					}
 
-				fieldVal.Set(currVal.Elem())
+					fieldVal.Set(currVal.Elem())
+				}
 			}
 		}
 

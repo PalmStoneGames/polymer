@@ -2,7 +2,6 @@ package main
 
 import (
 	"code.palmstonegames.com/polymer"
-	"github.com/gopherjs/gopherjs/js"
 )
 
 func init() {

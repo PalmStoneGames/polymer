@@ -14,6 +14,7 @@ type Data struct {
 	Text          string
 	RemainingTime int
 	Clock         time.Time
+	Click         chan *polymer.Event `polymer:"handler"`
 }
 
 func (d *Data) ComputeTime() string {
@@ -54,6 +55,13 @@ func main() {
 
 			// Wait
 			time.Sleep(time.Millisecond * 100)
+		}
+	}()
+
+	// Start a 3rd goroutine to listen on the Click channel
+	go func() {
+		for e := range data.Click {
+			polymer.Log("click triggered: ", e)
 		}
 	}()
 }

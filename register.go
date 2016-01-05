@@ -101,6 +101,8 @@ func Register(proto Interface, customAttrs ...CustomRegistrationAttr) {
 		m[handler.Name] = computeCallback(handler.Func)
 	}
 
+	// Note: Channel based event handlers are not setup here, they're setup in Created() as we need to actually make the channels
+
 	// Setup observers
 	setObservers(refType, m)
 
@@ -207,7 +209,7 @@ func parseProperties(refType reflect.Type) js.M {
 	refType = refType.Elem()
 	for i := 0; i < refType.NumField(); i++ {
 		fieldType := refType.Field(i)
-		if fieldType.Anonymous && fieldType.Type == typeOfPtrProto {
+		if fieldType.Anonymous && (fieldType.Type == typeOfPtrProto || fieldType.Type == typeOfPtrBindProto) {
 			continue
 		}
 
@@ -226,7 +228,6 @@ func parseProperties(refType reflect.Type) js.M {
 				}
 			}
 		}
-
 	}
 
 	return properties
@@ -240,6 +241,33 @@ func parseHandlers(refType reflect.Type) []reflect.Method {
 
 		if strings.HasPrefix(method.Name, "Handle") {
 			handlers = append(handlers, method)
+		}
+	}
+
+	return handlers
+}
+
+func parseChanHandlers(refType reflect.Type) []reflect.StructField {
+	refType = refType.Elem()
+	var handlers []reflect.StructField
+
+	for i := 0; i < refType.NumField(); i++ {
+		fieldType := refType.Field(i)
+		if fieldType.Anonymous && (fieldType.Type == typeOfPtrProto || fieldType.Type == typeOfPtrBindProto) {
+			continue
+		}
+
+		tagText := fieldType.Tag.Get("polymer")
+		if tagText == "" {
+			continue
+		}
+
+		tag := strings.Split(tagText, ",")
+		for i := 0; i < len(tag); i++ {
+			switch tag[i] {
+			case "handler":
+				handlers = append(handlers, fieldType)
+			}
 		}
 	}
 
