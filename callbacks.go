@@ -67,60 +67,70 @@ func createdCallback(refType reflect.Type) *js.Object {
 	})
 }
 
+func ensureReady(proto Interface) {
+	refVal := reflect.ValueOf(proto).Elem()
+	refType := reflect.TypeOf(proto).Elem()
+	data := proto.data()
+
+	if data.ready {
+		return
+	}
+
+	data.ready = true
+
+	// Set initial field values
+	for i := 0; i < refType.NumField(); i++ {
+		// Get field info first
+		fieldVal := refVal.Field(i)
+		fieldType := refType.Field(i)
+
+		// Ignore the *Proto and *BindProto anonymous field
+		if fieldType.Anonymous && (fieldType.Type == typeOfPtrProto || fieldType.Type == typeOfPtrBindProto) {
+			continue
+		}
+
+		// Special case check to not overwrite Model on dom-bind templates
+		if _, ok := proto.(*autoBindTemplate); ok && fieldType.Name == "Model" {
+			continue
+		}
+
+		// Skip unexported fields
+		var firstRune rune
+		for _, rune := range fieldType.Name {
+			firstRune = rune
+			break
+		}
+
+		if firstRune == unicode.ToLower(firstRune) {
+			continue
+		}
+
+		// If the value in JS is set, we take it over
+		// Otherwise, we take over the (usually zeroed) go value and set it in JS
+		// We can get away with doing this for only first level values, as they'll either get decoded recursively if they were set
+		// Or they'll get set from Go in their entirety if they were undefined
+		if fieldVal.Kind() != reflect.Chan {
+			jsVal := data.this.Get(fieldType.Name)
+			if jsVal == nil || jsVal == js.Undefined {
+				proto.Notify(fieldType.Name, fieldVal.Interface())
+			} else {
+				currVal := reflect.New(fieldType.Type)
+				if err := Decode(jsVal, currVal.Interface()); err != nil {
+					panic(fmt.Sprintf("Error while decoding polymer field value for %v: %v", fieldType.Name, err))
+				}
+
+				fieldVal.Set(currVal.Elem())
+			}
+		}
+	}
+}
+
 func readyCallback() *js.Object {
 	return js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		// Lookup the proto
 		proto := lookupProto(this)
-		refVal := reflect.ValueOf(proto).Elem()
-		refType := reflect.TypeOf(proto).Elem()
 
-		// Set initial field values
-		for i := 0; i < refType.NumField(); i++ {
-			// Get field info first
-			fieldVal := refVal.Field(i)
-			fieldType := refType.Field(i)
-
-			// Ignore the *Proto and *BindProto anonymous field
-			if fieldType.Anonymous && (fieldType.Type == typeOfPtrProto || fieldType.Type == typeOfPtrBindProto) {
-				continue
-			}
-
-			// Special case check to not overwrite Model on dom-bind templates
-			if _, ok := proto.(*autoBindTemplate); ok && fieldType.Name == "Model" {
-				continue
-			}
-
-			// Skip unexported fields
-			var firstRune rune
-			for _, rune := range fieldType.Name {
-				firstRune = rune
-				break
-			}
-
-			if firstRune == unicode.ToLower(firstRune) {
-				continue
-			}
-
-			// If the value in JS is set, we take it over
-			// Otherwise, we take over the (usually zeroed) go value and set it in JS
-			// We can get away with doing this for only first level values, as they'll either get decoded recursively if they were set
-			// Or they'll get set from Go in their entirety if they were undefined
-			if fieldVal.Kind() != reflect.Chan {
-				jsVal := this.Get(fieldType.Name)
-				if jsVal == nil || jsVal == js.Undefined {
-					this.Set(fieldType.Name, fieldVal.Interface())
-				} else {
-					currVal := reflect.New(fieldType.Type)
-					if err := Decode(jsVal, currVal.Interface()); err != nil {
-						panic(fmt.Sprintf("Error while decoding polymer field value for %v: %v", fieldType.Name, err))
-					}
-
-					fieldVal.Set(currVal.Elem())
-				}
-			}
-		}
-
-		// Call user hook
+		ensureReady(proto)
 		proto.Ready()
 
 		return nil
@@ -248,6 +258,8 @@ func eventChanCallback(handlerChan reflect.Value) *js.Object {
 func computeCallback(handler reflect.Value) *js.Object {
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
 		proto := lookupProto(this)
+		ensureReady(proto)
+
 		var returnArgs []reflect.Value
 		if autoBind, ok := proto.(*autoBindTemplate); ok {
 			returnArgs = handler.Call(reflectArgs(handler, autoBind.Model, jsArgs))

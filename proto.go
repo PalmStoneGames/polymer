@@ -67,6 +67,7 @@ type Interface interface {
 type Proto struct {
 	this *js.Object
 	Element
+	ready bool
 }
 
 func (p *Proto) Extends() string { return "" }
