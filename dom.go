@@ -38,6 +38,10 @@ func FlushDOM() {
 }
 
 func WrapDOMElement(el dom.Element) Element {
+	if el == nil {
+		return nil
+	}
+
 	// Check if the element is already wrapped, if so, avoid double-wrapping it
 	if isWrapped(el.Underlying()) {
 		// Try and cast the dom.Element to a polymer.Element, if it works, just return that
