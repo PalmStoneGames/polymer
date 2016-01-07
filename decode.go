@@ -158,6 +158,15 @@ func getRefValForPath(proto Interface, path []string) reflect.Value {
 	prevVal := refVal
 
 	for i, curr := range path {
+		kind := refVal.Kind()
+		if kind == reflect.Interface {
+			refVal = refVal.Elem()
+		}
+
+		if kind == reflect.Ptr {
+			refVal = refVal.Elem()
+		}
+
 		if curr[0] == '#' {
 			index, err := strconv.ParseInt(curr[1:], 10, 32)
 			if err != nil {
@@ -171,20 +180,6 @@ func getRefValForPath(proto Interface, path []string) reflect.Value {
 			}
 
 			refVal = refVal.FieldByName(curr)
-		}
-
-		kind := refVal.Kind()
-		if kind == reflect.Interface {
-			refVal = refVal.Elem()
-		}
-
-		if kind == reflect.Ptr {
-			refVal = refVal.Elem()
-		}
-
-		switch refVal.Kind() {
-		case reflect.Ptr, reflect.Interface:
-			refVal = refVal.Elem()
 		}
 
 		if !refVal.IsValid() {
