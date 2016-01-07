@@ -8,7 +8,7 @@ import (
 var typeOfPtrBindProto = reflect.TypeOf(&BindProto{})
 
 type BindInterface interface {
-	Notify(path string, val interface{})
+	Notify(path string)
 	data() *BindProto
 }
 
@@ -17,8 +17,8 @@ type BindProto struct {
 }
 
 func (p *BindProto) data() *BindProto { return p }
-func (p *BindProto) Notify(path string, val interface{}) {
-	lookupProto(p.data().this).Notify("Model."+path, val)
+func (p *BindProto) Notify(path string) {
+	lookupProto(p.data().this).Notify("Model." + path)
 }
 
 type AutoBindGoTemplate struct {
@@ -79,7 +79,7 @@ func (el *AutoBindGoTemplate) Bind(model BindInterface) {
 	proto.render()
 
 	// Notify the JS side
-	proto.Notify("Model", model)
+	proto.Notify("Model")
 }
 
 // autoBind is a port of the polymer auto-bind template to go, so we can bind our own observers to it

@@ -20,6 +20,7 @@ import (
 	"reflect"
 
 	"github.com/gopherjs/gopherjs/js"
+	"strings"
 )
 
 // Interface represents the interface implemented by all type prototypes
@@ -50,7 +51,7 @@ type Interface interface {
 	Detached()
 
 	// Notify notifies polymer that a value has changed
-	Notify(path string, val interface{})
+	Notify(path string)
 
 	// Internal utility
 	data() *Proto
@@ -78,13 +79,16 @@ func (p *Proto) data() *Proto { return p }
 func (p *Proto) This() *js.Object { return p.this }
 
 // Notify notifies polymer that a value has changed
-func (p *Proto) Notify(path string, val interface{}) {
-	// Special handling for BindInterface, the way it embeds structs confuses gopherJS and makes it pass the wrong data along
+func (p *Proto) Notify(path string) {
+	refVal := getRefValForPath(lookupProto(p.this), strings.Split(path, "."))
+	val := refVal.Interface()
+
+	// Workaround  BindInterface, the way it embeds structs confuses gopherJS and makes it pass the wrong data along
 	if bindProto, ok := val.(BindInterface); ok {
 		m := js.M{}
 		val = m
 
-		refVal := reflect.ValueOf(bindProto).Elem()
+		refVal := reflect.ValueOf(bindProto)
 		refType := refVal.Type()
 		for i := 0; i < refType.NumField(); i++ {
 			field := refType.Field(i)

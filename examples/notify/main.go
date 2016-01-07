@@ -27,9 +27,9 @@ func (t *Timer) Created() {
 			t.S = now.Second()
 
 			// Notify
-			t.Notify("H", t.H)
-			t.Notify("M", t.M)
-			t.Notify("S", t.S)
+			t.Notify("H")
+			t.Notify("M")
+			t.Notify("S")
 
 			// Wait
 			time.Sleep(time.Second)

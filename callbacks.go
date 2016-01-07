@@ -19,7 +19,6 @@ package polymer
 import (
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 	"unicode"
 
@@ -112,7 +111,7 @@ func ensureReady(proto Interface) {
 		if fieldVal.Kind() != reflect.Chan {
 			jsVal := data.this.Get(fieldType.Name)
 			if jsVal == nil || jsVal == js.Undefined {
-				proto.Notify(fieldType.Name, fieldVal.Interface())
+				proto.Notify(fieldType.Name)
 			} else {
 				currVal := reflect.New(fieldType.Type)
 				if err := Decode(jsVal, currVal.Interface()); err != nil {
@@ -174,33 +173,6 @@ func observeDeepCallback() *js.Object {
 		setObservedValue(lookupProto(this), strings.Split(record.Get("path").String(), "."), record.Get("value"))
 		return nil
 	})
-}
-
-func setObservedValue(proto Interface, path []string, val *js.Object) {
-	// Special case work-around so we don't overwrite the Model field in an autoBindTemplate
-	if _, ok := proto.(*autoBindTemplate); ok && len(path) == 1 && path[0] == "Model" {
-		return
-	}
-
-	refVal := reflect.ValueOf(proto).Elem()
-	for _, curr := range path {
-		if curr[0] == '#' {
-			index, err := strconv.ParseInt(curr[1:], 10, 32)
-			if err != nil {
-				panic(err)
-			}
-
-			refVal = refVal.Index(int(index))
-		} else {
-			refVal = refVal.FieldByName(curr)
-		}
-
-		if refVal.Kind() == reflect.Ptr {
-			refVal = refVal.Elem()
-		}
-	}
-
-	decodeRaw(val, refVal)
 }
 
 // reflectArgs builds up reflect args

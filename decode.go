@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/gopherjs/gopherjs/js"
+	"strconv"
 )
 
 var typeOfElement = reflect.TypeOf((*Element)(nil)).Elem()
@@ -150,4 +151,62 @@ func decodeStruct(jsVal *js.Object, refVal reflect.Value) error {
 	}
 
 	return nil
+}
+
+func getRefValForPath(proto Interface, path []string) reflect.Value {
+	refVal := reflect.ValueOf(proto).Elem()
+	prevVal := refVal
+
+	for i, curr := range path {
+		if curr[0] == '#' {
+			index, err := strconv.ParseInt(curr[1:], 10, 32)
+			if err != nil {
+				panic(err)
+			}
+
+			refVal = refVal.Index(int(index))
+		} else {
+			if refVal.Kind() != reflect.Struct {
+				panic(fmt.Sprintf("Path '%s' is invalid\nExpected parent to be a struct, but got a %s, so couldn't navigate further.", strings.Join(path[:i+1], "."), refVal.Kind()))
+			}
+
+			refVal = refVal.FieldByName(curr)
+		}
+
+		kind := refVal.Kind()
+		if kind == reflect.Interface {
+			refVal = refVal.Elem()
+		}
+
+		if kind == reflect.Ptr {
+			refVal = refVal.Elem()
+		}
+
+		switch refVal.Kind() {
+		case reflect.Ptr, reflect.Interface:
+			refVal = refVal.Elem()
+		}
+
+		if !refVal.IsValid() {
+			refType := prevVal.Type()
+			var fieldNames []string
+			for i := 0; i < refType.NumField(); i++ {
+				fieldNames = append(fieldNames, refType.Field(i).Name)
+			}
+			panic(fmt.Sprintf("Path '%s' is invalid\nList of valid field names on this level: %s", strings.Join(path[:i+1], "."), strings.Join(fieldNames, ", ")))
+		}
+
+		prevVal = refVal
+	}
+
+	return refVal
+}
+
+func setObservedValue(proto Interface, path []string, val *js.Object) {
+	// Special case work-around so we don't overwrite the Model field in an autoBindTemplate
+	if _, ok := proto.(*autoBindTemplate); ok && len(path) == 1 && path[0] == "Model" {
+		return
+	}
+
+	decodeRaw(val, getRefValForPath(proto, path))
 }

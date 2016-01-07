@@ -37,11 +37,11 @@ func main() {
 		for data.RemainingTime > 0 {
 			time.Sleep(time.Second)
 			data.RemainingTime--
-			data.Notify("RemainingTime", data.RemainingTime)
+			data.Notify("RemainingTime")
 		}
 
 		data.Text = "This text is ALSO set from Go, in a goroutine, after 5 seconds"
-		data.Notify("Text", data.Text)
+		data.Notify("Text")
 	}()
 
 	// Start a 2nd goroutine to update the live clock, this code is identical to the computed-property example
@@ -51,7 +51,7 @@ func main() {
 			data.Clock = time.Now()
 
 			// Notify
-			data.Notify("Clock", data.Clock)
+			data.Notify("Clock")
 
 			// Wait
 			time.Sleep(time.Millisecond * 100)

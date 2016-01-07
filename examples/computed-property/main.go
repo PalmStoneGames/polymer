@@ -22,7 +22,7 @@ func (t *Timer) Created() {
 			t.Time = time.Now()
 
 			// Notify
-			t.Notify("Time", t.Time)
+			t.Notify("Time")
 
 			// Wait
 			time.Sleep(time.Millisecond * 100)
