@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	polymer.Register(&Timer{})
+	polymer.Register("tick-timer", &Timer{})
 }
 
 type Timer struct {
@@ -15,10 +15,6 @@ type Timer struct {
 	H int `polymer:"bind"`
 	M int `polymer:"bind"`
 	S int `polymer:"bind"`
-}
-
-func (t *Timer) TagName() string {
-	return "tick-timer"
 }
 
 func (t *Timer) Created() {

@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	polymer.Register(&NameTag{})
+	polymer.Register("name-tag", &NameTag{})
 }
 
 type NameTag struct {
@@ -17,10 +17,6 @@ type NameTag struct {
 	ID         int64               `polymer:"bind"`
 	Name       string              `polymer:"bind"`
 	NameChange chan *polymer.Event `polymer:"handler"`
-}
-
-func (n *NameTag) TagName() string {
-	return "name-tag"
 }
 
 func (n *NameTag) Created() {

@@ -95,14 +95,6 @@ type autoBindTemplate struct {
 	Model interface{} `polymer:"bind"`
 }
 
-func (*autoBindTemplate) TagName() string {
-	return "dom-bind-go"
-}
-
-func (*autoBindTemplate) Extends() string {
-	return "template"
-}
-
 func (t *autoBindTemplate) Created() {
 	js.Global.Get("Polymer").Get("RenderStatus").Call("whenReady", t.markImportsReady)
 }
@@ -177,7 +169,8 @@ func (t *autoBindTemplate) render() {
 }
 
 func init() {
-	Register(&autoBindTemplate{},
+	Register("dom-bind-go", &autoBindTemplate{},
+		WithExtends("template"),
 		CustomRegistrationAttr{"_template", nil},
 		CustomRegistrationAttr{"_registerFeatures", js.MakeFunc(func(this *js.Object, args []*js.Object) interface{} {
 			this.Call("_prepConstructor")

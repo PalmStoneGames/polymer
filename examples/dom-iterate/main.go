@@ -5,8 +5,8 @@ import (
 )
 
 func init() {
-	polymer.Register(&FancyInput{})
-	polymer.Register(&InputList{})
+	polymer.Register("fancy-input", &FancyInput{})
+	polymer.Register("input-list", &InputList{})
 }
 
 type FancyInput struct {
@@ -14,16 +14,8 @@ type FancyInput struct {
 	Value string `polymer:"bind"`
 }
 
-func (i *FancyInput) TagName() string {
-	return "fancy-input"
-}
-
 type InputList struct {
 	*polymer.Proto
-}
-
-func (t *InputList) TagName() string {
-	return "input-list"
 }
 
 func (t *InputList) Ready() {

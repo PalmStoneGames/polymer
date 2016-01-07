@@ -27,12 +27,6 @@ import (
 // Most of this interface can be implemented by embedded polymer.Proto
 // The notable exception to this is TagName, which must always be manually implemented
 type Interface interface {
-	// TagName should return the name of the tag this type will be handling
-	TagName() string
-	// Extends should return the name of the tag that this element extends.
-	// Currently, polymer only supports extending default elements, not user-defined ones
-	Extends() string
-
 	// Created is part of the lifecycle callbacks
 	// It is called when the element is initially created, before the constructor
 	// Details can be found at https://www.polymer-project.org/1.0/docs/devguide/registering-elements.html#lifecycle-callbacks

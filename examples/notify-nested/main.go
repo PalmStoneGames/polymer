@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	polymer.Register(&DataContainer{})
+	polymer.Register("data-container", &DataContainer{})
 }
 
 type DataContainer struct {
@@ -23,10 +23,6 @@ type AdminData struct {
 
 type UserData struct {
 	Name string
-}
-
-func (t *DataContainer) TagName() string {
-	return "data-container"
 }
 
 func (t *DataContainer) Created() {

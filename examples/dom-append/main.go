@@ -7,15 +7,11 @@ import (
 )
 
 func init() {
-	polymer.Register(&TableLayout{})
+	polymer.Register("table-layout", &TableLayout{})
 }
 
 type TableLayout struct {
 	*polymer.Proto
-}
-
-func (t *TableLayout) TagName() string {
-	return "table-layout"
 }
 
 func (t *TableLayout) Ready() {

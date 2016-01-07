@@ -59,15 +59,22 @@ func lookupProto(obj *js.Object) Interface {
 	return jsMap[index.Int()]
 }
 
+// WithExtends can be passed as option to Register to make an element extend another element
+func WithExtends(extends string) CustomRegistrationAttr {
+	return CustomRegistrationAttr{
+		Name:  "extends",
+		Value: extends,
+	}
+}
+
 // Register makes polymer aware of a certain type
 // Polymer will analyze the type and use it for the tag returned by TagName()
 // The type will then be instantiated automatically when tags corresponding to TagName are created through any method
-func Register(proto Interface, customAttrs ...CustomRegistrationAttr) {
+func Register(tagName string, proto Interface, customAttrs ...CustomRegistrationAttr) {
 	if webComponentsReady {
 		panic("polymer.Register call after WebComponentsReady has triggered")
 	}
 
-	tagName := proto.TagName()
 	if !strings.Contains(tagName, "-") {
 		panic("Tagnames must contain a dash according to polymer's standards for custom elements")
 	}
@@ -84,7 +91,6 @@ func Register(proto Interface, customAttrs ...CustomRegistrationAttr) {
 	// Setup basics
 	m := js.M{}
 	m["is"] = tagName
-	m["extends"] = proto.Extends()
 	m["created"] = createdCallback(refType)
 	m["ready"] = readyCallback()
 	m["attached"] = attachedCallback()
@@ -112,7 +118,7 @@ func Register(proto Interface, customAttrs ...CustomRegistrationAttr) {
 	}
 
 	// Register our prototype with polymer
-	pendingGoRegistrations[proto.TagName()] = m
+	pendingGoRegistrations[tagName] = m
 }
 
 // OnReady returns a channel that will be closed once polymer has been initialized

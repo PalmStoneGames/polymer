@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	polymer.Register(&FancySquare{})
+	polymer.Register("fancy-square", &FancySquare{})
 }
 
 type FancySquare struct {
@@ -15,10 +15,6 @@ type FancySquare struct {
 	// Vars
 	ID   int64  `polymer:"bind"`
 	Name string `polymer:"bind"`
-}
-
-func (s *FancySquare) TagName() string {
-	return "fancy-square"
 }
 
 func (s *FancySquare) Ready() {
