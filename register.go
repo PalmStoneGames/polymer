@@ -99,12 +99,12 @@ func Register(tagName string, proto Interface, customAttrs ...CustomRegistration
 
 	// Setup handlers
 	for _, handler := range parseHandlers(refType) {
-		m[handler.Name] = eventHandlerCallback(handler.Func)
+		m[getJsName(handler.Name)] = eventHandlerCallback(handler.Func)
 	}
 
 	// Setup compute functions
 	for _, handler := range parseComputes(refType) {
-		m[handler.Name] = computeCallback(handler.Func)
+		m[getJsName(handler.Name)] = computeCallback(handler.Func)
 	}
 
 	// Note: Channel based event handlers are not setup here, they're setup in Created() as we need to actually make the channels
@@ -228,7 +228,7 @@ func parseProperties(refType reflect.Type) js.M {
 		for i := 0; i < len(tag); i++ {
 			switch tag[i] {
 			case "bind":
-				properties[fieldType.Name] = js.M{
+				properties[getJsName(fieldType.Name)] = js.M{
 					"type":   getJsType(refType.FieldByIndex(fieldType.Index).Type),
 					"notify": true,
 				}
@@ -311,7 +311,7 @@ func setObserversNested(refType reflect.Type, m js.M, observers *js.S, path []st
 
 		currPath := make([]string, len(path)+1)
 		copy(currPath, path)
-		currPath[len(path)] = field.Name
+		currPath[len(path)] = getJsName(field.Name)
 
 		// Check if this field has the bind fieldtag
 		bind := false

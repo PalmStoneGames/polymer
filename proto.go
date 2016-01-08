@@ -17,10 +17,9 @@ limitations under the License.
 package polymer
 
 import (
-	"reflect"
+	"strings"
 
 	"github.com/gopherjs/gopherjs/js"
-	"strings"
 )
 
 // Interface represents the interface implemented by all type prototypes
@@ -50,9 +49,6 @@ type Interface interface {
 	// Details can be found at https://www.polymer-project.org/1.0/docs/devguide/registering-elements.html#lifecycle-callbacks
 	Detached()
 
-	// Notify notifies polymer that a value has changed
-	Notify(path string)
-
 	// Internal utility
 	data() *Proto
 }
@@ -81,27 +77,11 @@ func (p *Proto) This() *js.Object { return p.this }
 // Notify notifies polymer that a value has changed
 func (p *Proto) Notify(path string) {
 	refVal := getRefValForPath(lookupProto(p.this), strings.Split(path, "."))
-	val := refVal.Interface()
+	jsObj, _ := encodeRaw(refVal)
+	p.doNotify(path, jsObj)
+}
 
-	// Workaround  BindInterface, the way it embeds structs confuses gopherJS and makes it pass the wrong data along
-	if bindProto, ok := val.(BindInterface); ok {
-		m := js.M{}
-		val = m
-
-		refVal := reflect.ValueOf(bindProto)
-		refType := refVal.Type()
-		for i := 0; i < refType.NumField(); i++ {
-			field := refType.Field(i)
-			if field.Anonymous {
-				continue
-			}
-
-			if field.Type.Kind() != reflect.Chan {
-				m[field.Name] = refVal.Field(i).Interface()
-			}
-		}
-	}
-
+func (p *Proto) doNotify(path string, val interface{}) {
 	p.this.Call("set", path, val)
 }
 

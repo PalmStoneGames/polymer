@@ -9,12 +9,12 @@
 	</style>
 
 	<template>
-		Name: <input type="text" value="{{Name::input}}" on-input="NameChange" /><br />
-		This is <b>{{Name}}</b> name-tag element.
+		Name: <input type="text" value="{{name::input}}" on-input="nameChange" /><br />
+		This is <b>{{name}}</b> name-tag element.
 
 		The go code bound to it will output the name to the console using fmt.Printf. See main.go.<br />
 		Each name-tag element is also completely independent, backed by a different instance of the NameTag structure<br />
-		The Go generated ID of this particular name tag is <b>{{ID}}</b>
+		The Go generated ID of this particular name tag is <b>{{id}}</b>
 	</template>
 	<script>PolymerGo("name-tag")</script>
 </dom-module>

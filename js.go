@@ -19,6 +19,7 @@ package polymer
 import (
 	"reflect"
 	"regexp"
+	"unicode"
 
 	"github.com/gopherjs/gopherjs/js"
 )
@@ -35,6 +36,21 @@ func init() {
 
 func Log(args ...interface{}) {
 	js.Global.Get("console").Call("log", args...)
+}
+
+func getJsName(fieldName string) string {
+	endIndex := len(fieldName) - 1
+	newFieldName := ""
+	for i, rune := range fieldName {
+		newFieldName += string(unicode.ToLower(rune))
+		if unicode.IsLower(rune) {
+			endIndex = i
+			break
+		}
+	}
+
+	newFieldName += fieldName[endIndex+1:]
+	return newFieldName
 }
 
 func getJsType(t reflect.Type) *js.Object {

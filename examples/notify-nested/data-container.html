@@ -9,20 +9,20 @@
 	<template>
 		<div class="container">
 			<b>Admin</b>
-			<div>Admin name: <input type="text" value="{{AdminData.Name::input}}" on-input="HandleInput" /></div>
+			<div>Admin name: <input type="text" value="{{adminData.name::input}}" on-input="handleInput" /></div>
 		</div>
 
 		<div class="container">
 			<b>Permissions</b>
-			<template is="dom-repeat" items="{{AdminData.Permissions}}">
-				<div>#{{index}} <input type="text" value="{{item::input}}" on-input="HandleInput" /></div>
+			<template is="dom-repeat" items="{{adminData.permissions}}">
+				<div>#{{index}} <input type="text" value="{{item::input}}" on-input="handleInput" /></div>
 			</template>
 		</div>
 
 		<div class="container">
 			<b>Users</b>
-			<template is="dom-repeat" items="{{UsersData}}">
-				<div>#{{index}} <input type="text" value="{{item.Name::input}}" on-input="HandleInput" /></div>
+			<template is="dom-repeat" items="{{usersData}}">
+				<div>#{{index}} <input type="text" value="{{item.name::input}}" on-input="handleInput" /></div>
 			</template>
 		</div>
 	</template>

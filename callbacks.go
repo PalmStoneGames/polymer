@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"unicode"
 
 	"github.com/gopherjs/gopherjs/js"
 )
@@ -56,7 +55,7 @@ func createdCallback(refType reflect.Type) *js.Object {
 			chanVal.Set(reflect.MakeChan(chanVal.Type(), 0))
 
 			// Set handler function
-			this.Set(handler.Name, eventChanCallback(chanVal))
+			this.Set(getJsName(handler.Name), eventChanCallback(chanVal))
 		}
 
 		// Call the proto side callback for user hooks
@@ -82,6 +81,7 @@ func ensureReady(proto Interface) {
 		// Get field info first
 		fieldVal := refVal.Field(i)
 		fieldType := refType.Field(i)
+		jsName := getJsName(fieldType.Name)
 
 		// Ignore the *Proto and *BindProto anonymous field
 		if fieldType.Anonymous && (fieldType.Type == typeOfPtrProto || fieldType.Type == typeOfPtrBindProto) {
@@ -94,13 +94,7 @@ func ensureReady(proto Interface) {
 		}
 
 		// Skip unexported fields
-		var firstRune rune
-		for _, rune := range fieldType.Name {
-			firstRune = rune
-			break
-		}
-
-		if firstRune == unicode.ToLower(firstRune) {
+		if !isFieldExported(fieldType.Name) {
 			continue
 		}
 
@@ -109,9 +103,12 @@ func ensureReady(proto Interface) {
 		// We can get away with doing this for only first level values, as they'll either get decoded recursively if they were set
 		// Or they'll get set from Go in their entirety if they were undefined
 		if fieldVal.Kind() != reflect.Chan {
-			jsVal := data.this.Get(fieldType.Name)
+			jsVal := data.this.Get(jsName)
 			if jsVal == nil || jsVal == js.Undefined {
-				proto.Notify(fieldType.Name)
+				jsObj, filled := encodeRaw(fieldVal)
+				if filled {
+					proto.data().doNotify(jsName, jsObj)
+				}
 			} else {
 				currVal := reflect.New(fieldType.Type)
 				if err := Decode(jsVal, currVal.Interface()); err != nil {

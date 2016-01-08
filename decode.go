@@ -158,12 +158,11 @@ func getRefValForPath(proto Interface, path []string) reflect.Value {
 	prevVal := refVal
 
 	for i, curr := range path {
-		kind := refVal.Kind()
-		if kind == reflect.Interface {
+		if refVal.Kind() == reflect.Interface {
 			refVal = refVal.Elem()
 		}
 
-		if kind == reflect.Ptr {
+		if refVal.Kind() == reflect.Ptr {
 			refVal = refVal.Elem()
 		}
 
@@ -179,14 +178,14 @@ func getRefValForPath(proto Interface, path []string) reflect.Value {
 				panic(fmt.Sprintf("Path '%s' is invalid\nExpected parent to be a struct, but got a %s, so couldn't navigate further.", strings.Join(path[:i+1], "."), refVal.Kind()))
 			}
 
-			refVal = refVal.FieldByName(curr)
+			refVal = refVal.FieldByNameFunc(func(s string) bool { return getJsName(s) == curr })
 		}
 
 		if !refVal.IsValid() {
 			refType := prevVal.Type()
 			var fieldNames []string
 			for i := 0; i < refType.NumField(); i++ {
-				fieldNames = append(fieldNames, refType.Field(i).Name)
+				fieldNames = append(fieldNames, getJsName(refType.Field(i).Name))
 			}
 			panic(fmt.Sprintf("Path '%s' is invalid\nList of valid field names on this level: %s", strings.Join(path[:i+1], "."), strings.Join(fieldNames, ", ")))
 		}
