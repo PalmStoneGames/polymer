@@ -54,12 +54,12 @@ func (el *AutoBindGoTemplate) Bind(model BindInterface) {
 
 	// Setup handlers
 	for _, handler := range parseHandlers(refType) {
-		jsObj.Set(handler.Name, eventHandlerCallback(handler.Func))
+		jsObj.Set(getJsName(handler.Name), eventHandlerCallback(handler.Func))
 	}
 
 	// Setup compute functions
 	for _, handler := range parseComputes(refType) {
-		jsObj.Set(handler.Name, computeCallback(handler.Func))
+		jsObj.Set(getJsName(handler.Name), computeCallback(handler.Func))
 	}
 
 	// Setup channel based event handlers
@@ -69,7 +69,7 @@ func (el *AutoBindGoTemplate) Bind(model BindInterface) {
 		chanVal.Set(reflect.MakeChan(chanVal.Type(), 0))
 
 		// Set handler function
-		jsObj.Set(handler.Name, eventChanCallback(chanVal))
+		jsObj.Set(getJsName(handler.Name), eventChanCallback(chanVal))
 	}
 
 	// Set the needed data on Go side

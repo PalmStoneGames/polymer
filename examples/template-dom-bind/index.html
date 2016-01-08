@@ -8,7 +8,7 @@
 <body>
 	<template is="dom-bind-go" id="tmpl">
 		{{model.remainingTime}} - {{model.text}}<br />
-		The following text is using a computed binding: {{ComputeTime(model.clock)}}<br/>
+		The following text is using a computed binding: {{computeTime(model.clock)}}<br/>
 		<button type="button" on-click="HandleClick">This button triggers HandleClick</button><br />
 		<button type="button" on-click="Click">This button sends on the  Click channel</button><br />
 	</template>
