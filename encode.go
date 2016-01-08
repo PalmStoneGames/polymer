@@ -25,6 +25,10 @@ func encodeRaw(refVal reflect.Value) (*js.Object, bool) {
 		refVal = refVal.Elem()
 	}
 
+	if !refVal.IsValid() {
+		return nil, false
+	}
+
 	refType := refVal.Type()
 	switch refVal.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
