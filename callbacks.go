@@ -219,7 +219,9 @@ func eventChanCallback(handlerChan reflect.Value) *js.Object {
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
 		chanArg := reflect.New(chanArgType)
 		decodeRaw(jsArgs[0], chanArg.Elem())
-		handlerChan.Send(chanArg.Elem())
+		go func() {
+			handlerChan.Send(chanArg.Elem())
+		}()
 		return nil
 	})
 }
