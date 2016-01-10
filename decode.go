@@ -45,33 +45,33 @@ func Decode(jsVal *js.Object, target interface{}) error {
 func decodeRaw(jsVal *js.Object, refVal reflect.Value) error {
 	switch refVal.Kind() {
 	case reflect.Int:
-		refVal.Set(reflect.ValueOf(jsVal.Int()))
+		refVal.Set(reflect.ValueOf(jsVal.Int()).Convert(refVal.Type()))
 	case reflect.Int8:
-		refVal.Set(reflect.ValueOf(int8(jsVal.Int())))
+		refVal.Set(reflect.ValueOf(int8(jsVal.Int())).Convert(refVal.Type()))
 	case reflect.Int16:
-		refVal.Set(reflect.ValueOf(int16(jsVal.Int())))
+		refVal.Set(reflect.ValueOf(int16(jsVal.Int())).Convert(refVal.Type()))
 	case reflect.Int32:
-		refVal.Set(reflect.ValueOf(int32(jsVal.Int())))
+		refVal.Set(reflect.ValueOf(int32(jsVal.Int())).Convert(refVal.Type()))
 	case reflect.Int64:
-		refVal.Set(reflect.ValueOf(jsVal.Int64()))
+		refVal.Set(reflect.ValueOf(jsVal.Int64()).Convert(refVal.Type()))
 	case reflect.Uint:
-		refVal.Set(reflect.ValueOf(uint(jsVal.Uint64())))
+		refVal.Set(reflect.ValueOf(uint(jsVal.Uint64())).Convert(refVal.Type()))
 	case reflect.Uint8:
-		refVal.Set(reflect.ValueOf(uint8(jsVal.Uint64())))
+		refVal.Set(reflect.ValueOf(uint8(jsVal.Uint64())).Convert(refVal.Type()))
 	case reflect.Uint16:
-		refVal.Set(reflect.ValueOf(uint16(jsVal.Uint64())))
+		refVal.Set(reflect.ValueOf(uint16(jsVal.Uint64())).Convert(refVal.Type()))
 	case reflect.Uint32:
-		refVal.Set(reflect.ValueOf(uint32(jsVal.Uint64())))
+		refVal.Set(reflect.ValueOf(uint32(jsVal.Uint64())).Convert(refVal.Type()))
 	case reflect.Uint64:
-		refVal.Set(reflect.ValueOf(jsVal.Uint64()))
+		refVal.Set(reflect.ValueOf(jsVal.Uint64()).Convert(refVal.Type()))
 	case reflect.Float32:
-		refVal.Set(reflect.ValueOf(float32(jsVal.Float())))
+		refVal.Set(reflect.ValueOf(float32(jsVal.Float())).Convert(refVal.Type()))
 	case reflect.Float64:
-		refVal.Set(reflect.ValueOf(jsVal.Float()))
+		refVal.Set(reflect.ValueOf(jsVal.Float()).Convert(refVal.Type()))
 	case reflect.String:
-		refVal.Set(reflect.ValueOf(jsVal.String()))
+		refVal.Set(reflect.ValueOf(jsVal.String()).Convert(refVal.Type()))
 	case reflect.Bool:
-		refVal.Set(reflect.ValueOf(jsVal.Bool()))
+		refVal.Set(reflect.ValueOf(jsVal.Bool()).Convert(refVal.Type()))
 	case reflect.Interface:
 		switch refVal.Type() {
 		case typeOfElement:
