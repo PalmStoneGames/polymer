@@ -42,6 +42,10 @@ type CustomRegistrationAttr struct {
 	Value interface{}
 }
 
+type ElementDefinition struct {
+	protoDef js.M
+}
+
 func init() {
 	// Setup a global that can be called from js to register an element with us
 	js.Global.Set("PolymerGo", polymerGo)
@@ -67,7 +71,11 @@ func WithExtends(extends string) CustomRegistrationAttr {
 	}
 }
 
-func WithBehaviors(behaviors ...*js.Object) CustomRegistrationAttr {
+// WithBehaviors can be used to pass the protos of other polymer objects to be
+// - If a string is passed, polymer will look for a global with that name,
+// - If a *ElementDefinition is passed, it will be used as is
+// - If a *js.Object is passed, it is set directly as behavior
+func WithBehaviors(behaviors ...interface{}) CustomRegistrationAttr {
 	return CustomRegistrationAttr{
 		Name:  "behaviors",
 		Value: behaviors,
@@ -77,7 +85,7 @@ func WithBehaviors(behaviors ...*js.Object) CustomRegistrationAttr {
 // Register makes polymer aware of a certain type
 // Polymer will analyze the type and use it for the tag returned by TagName()
 // The type will then be instantiated automatically when tags corresponding to TagName are created through any method
-func Register(tagName string, proto Interface, customAttrs ...CustomRegistrationAttr) {
+func Register(tagName string, proto Interface, customAttrs ...CustomRegistrationAttr) *ElementDefinition {
 	if webComponentsReady {
 		panic("polymer.Register call after WebComponentsReady has triggered")
 	}
@@ -126,6 +134,7 @@ func Register(tagName string, proto Interface, customAttrs ...CustomRegistration
 
 	// Register our prototype with polymer
 	pendingGoRegistrations[tagName] = m
+	return &ElementDefinition{m}
 }
 
 // OnReady returns a channel that will be closed once polymer has been initialized
@@ -190,18 +199,45 @@ func webComponentsReadyCallback() {
 	// process all JS registrations in order, and then all the go only ones
 	// Loop through the JS registrations and call Polymer()
 	for _, tagName := range pendingJSRegistrations {
-		js.Global.Call("Polymer", pendingGoRegistrations[tagName])
+		doRegister(pendingGoRegistrations[tagName])
 	}
 
 	// Register Go only elements as well
 	for _, tagName := range goOnlyRegistration {
-		js.Global.Call("Polymer", pendingGoRegistrations[tagName])
+		doRegister(pendingGoRegistrations[tagName])
 	}
 
 	// Close all ready chans
 	for _, c := range onReadyChans {
 		close(c)
 	}
+}
+
+func doRegister(protoDef js.M) {
+	if protoDef["behaviors"] != nil {
+		behaviors := protoDef["behaviors"].([]interface{})
+		for i, val := range behaviors {
+			switch val.(type) {
+			case string:
+				name := val.(string)
+				global := js.Global.Get(name)
+				if global != nil && global != js.Undefined {
+					behaviors[i] = global
+				} else {
+					behaviors[i] = js.Global.Get("Polymer").Get(name)
+				}
+			case *ElementDefinition:
+				behaviors[i] = val.(*ElementDefinition).protoDef
+			case *js.Object:
+			default:
+				panic(fmt.Sprintf("Don't know what to do with behavior of type %T", behaviors[i]))
+			}
+		}
+
+		protoDef["behaviors"] = behaviors
+	}
+
+	js.Global.Call("Polymer", protoDef)
 }
 
 func polymerGo(tagName string) {
