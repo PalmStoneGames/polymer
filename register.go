@@ -67,6 +67,13 @@ func WithExtends(extends string) CustomRegistrationAttr {
 	}
 }
 
+func WithBehaviors(behaviors ...*js.Object) CustomRegistrationAttr {
+	return CustomRegistrationAttr{
+		Name:  "behaviors",
+		Value: behaviors,
+	}
+}
+
 // Register makes polymer aware of a certain type
 // Polymer will analyze the type and use it for the tag returned by TagName()
 // The type will then be instantiated automatically when tags corresponding to TagName are created through any method
