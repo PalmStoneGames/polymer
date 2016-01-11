@@ -71,7 +71,8 @@ func decodeRaw(jsVal *js.Object, refVal reflect.Value) error {
 	case reflect.String:
 		refVal.Set(reflect.ValueOf(jsVal.String()).Convert(refVal.Type()))
 	case reflect.Bool:
-		refVal.Set(reflect.ValueOf(jsVal.Bool()).Convert(refVal.Type()))
+		// TODO: Once https://github.com/gopherjs/gopherjs/issues/375 is fixed, add Convert() here
+		refVal.Set(reflect.ValueOf(jsVal.Bool()))
 	case reflect.Interface:
 		switch refVal.Type() {
 		case typeOfElement:
