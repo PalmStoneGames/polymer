@@ -174,7 +174,7 @@ func webComponentsReadyCallback() {
 
 	// Check for JS only registrations, those are invalid
 	for _, tagName := range jsOnlyRegistration {
-		fmt.Printf("Error: '%v' is registered through PolymerGo(), but polymer.Register() was never called for it.", tagName)
+		fmt.Printf("Error: '%v' is registered through PolymerGo(), but polymer.Register() was never called for it.\n", tagName)
 	}
 	if len(jsOnlyRegistration) != 0 {
 		panic("All tags registered through PolymerGo must have polymer.Register() called for them")
