@@ -43,6 +43,12 @@ func Decode(jsVal *js.Object, target interface{}) error {
 // decodeRaw is an unwrapped version of Decode
 // it is needed internally to be able to avoid the extra reflect indirection from a normal Decode() call
 func decodeRaw(jsVal *js.Object, refVal reflect.Value) error {
+	// Special case for empty jsVals
+	if jsVal == nil || jsVal == js.Undefined {
+		refVal.Set(reflect.Zero(refVal.Type()))
+		return nil
+	}
+
 	switch refVal.Kind() {
 	case reflect.Int:
 		refVal.Set(reflect.ValueOf(jsVal.Int()).Convert(refVal.Type()))
