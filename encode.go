@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/gopherjs/gopherjs/js"
+	"time"
 )
 
 func init() {
@@ -48,23 +49,30 @@ func encodeRaw(refVal reflect.Value) (*js.Object, bool) {
 
 		return interfaceToJsObject(s), true
 	case reflect.Struct:
-		m := js.M{}
-		for i := 0; i < refType.NumField(); i++ {
-			fieldType := refType.Field(i)
-			if !isFieldExported(fieldType.Name) {
-				continue
+		switch refVal.Interface().(type) {
+		case time.Time:
+			t := refVal.Interface().(time.Time)
+			return interfaceToJsObject(t), !t.IsZero()
+		default:
+			m := js.M{}
+			for i := 0; i < refType.NumField(); i++ {
+				fieldType := refType.Field(i)
+				if !isFieldExported(fieldType.Name) {
+					continue
+				}
+
+				jsObj, filled := encodeRaw(refVal.Field(i))
+
+				if !filled {
+					continue
+				}
+
+				m[getJsName(fieldType.Name)] = jsObj
 			}
 
-			jsObj, filled := encodeRaw(refVal.Field(i))
-
-			if !filled {
-				continue
-			}
-
-			m[getJsName(fieldType.Name)] = jsObj
+			return interfaceToJsObject(m), len(m) != 0
 		}
 
-		return interfaceToJsObject(m), len(m) != 0
 	default:
 		return nil, false
 	}
