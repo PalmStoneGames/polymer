@@ -41,3 +41,17 @@ type PropertyChangedEvent struct {
 	Event
 	JSValue *js.Object `polymer-decode:"detail.value"`
 }
+
+type MouseEvent struct {
+	Event
+
+	MovementX int `polymer-decode:"movementX"`
+	MovementY int `polymer-decode:"movementY"`
+	OffsetX   int `polymer-decode:"offsetX"`
+	OffsetY   int `polymer-decode:"offsetY"`
+	PageX     int `polymer-decode:"pageX"`
+	PageY     int `polymer-decode:"pageY"`
+
+	FromElement Element `polymer-decode:"fromElement"`
+	ToElement   Element `polymer-decode:"toElement"`
+}
