@@ -205,6 +205,8 @@ func reflectArgs(handler reflect.Value, proto interface{}, jsArgs []*js.Object) 
 func eventHandlerCallback(handler reflect.Value) *js.Object {
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
 		proto := lookupProto(this)
+
+		jsArgs[0] = js.Global.Get("Polymer").Call("dom", jsArgs[0])
 		if autoBind, ok := proto.(*autoBindTemplate); ok {
 			handler.Call(reflectArgs(handler, autoBind.Model, jsArgs))
 		} else {
@@ -218,7 +220,8 @@ func eventChanCallback(handlerChan reflect.Value) *js.Object {
 	chanArgType := handlerChan.Type().Elem()
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
 		chanArg := reflect.New(chanArgType)
-		decodeRaw(jsArgs[0], chanArg.Elem())
+		eventObj := js.Global.Get("Polymer").Call("dom", jsArgs[0])
+		decodeRaw(eventObj, chanArg.Elem())
 		go func() {
 			handlerChan.Send(chanArg.Elem())
 		}()

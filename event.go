@@ -23,18 +23,18 @@ import (
 )
 
 type Event struct {
-	Type string    `polymer-decode:"type"`
-	Time time.Time `polymer-decode:"timeStamp"`
+	Type string    `polymer-decode:"event.type"`
+	Time time.Time `polymer-decode:"event.timeStamp"`
 
-	IsTrusted        bool `polymer-decode:"isTrusted"`
-	Cancelable       bool `polymer-decode:"cancelable"`
-	DefaultPrevented bool `polymer-decode:"defaultPrevented"`
-	Bubbles          bool `polymer-decode:"bubbles"`
-	CancelBubble     bool `polymer-decode:"cancelBubble"`
+	IsTrusted        bool `polymer-decode:"event.isTrusted"`
+	Cancelable       bool `polymer-decode:"event.cancelable"`
+	DefaultPrevented bool `polymer-decode:"event.defaultPrevented"`
+	Bubbles          bool `polymer-decode:"event.bubbles"`
+	CancelBubble     bool `polymer-decode:"event.cancelBubble"`
 
-	SourceElement Element   `polymer-decode:"srcElement"`
-	Target        Element   `polymer-decode:"target"`
-	Path          []Element `polymer-decode:"path"`
+	LocalTarget Element   `polymer-decode:"localTarget"`
+	RootTarget  Element   `polymer-decode:"rootTarget"`
+	Path        []Element `polymer-decode:"path"`
 }
 
 type PropertyChangedEvent struct {
@@ -45,13 +45,13 @@ type PropertyChangedEvent struct {
 type MouseEvent struct {
 	Event
 
-	MovementX int `polymer-decode:"movementX"`
-	MovementY int `polymer-decode:"movementY"`
-	OffsetX   int `polymer-decode:"offsetX"`
-	OffsetY   int `polymer-decode:"offsetY"`
-	PageX     int `polymer-decode:"pageX"`
-	PageY     int `polymer-decode:"pageY"`
+	MovementX int `polymer-decode:"event.movementX"`
+	MovementY int `polymer-decode:"event.movementY"`
+	OffsetX   int `polymer-decode:"event.offsetX"`
+	OffsetY   int `polymer-decode:"event.offsetY"`
+	PageX     int `polymer-decode:"event.pageX"`
+	PageY     int `polymer-decode:"event.pageY"`
 
-	FromElement Element `polymer-decode:"fromElement"`
-	ToElement   Element `polymer-decode:"toElement"`
+	FromElement Element `polymer-decode:"event.fromElement"`
+	ToElement   Element `polymer-decode:"event.toElement"`
 }
