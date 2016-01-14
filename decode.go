@@ -142,7 +142,7 @@ func decodeStruct(jsVal *js.Object, refVal reflect.Value) error {
 
 		tag := fieldType.Tag.Get("polymer-decode")
 		if tag == "" {
-			continue
+			tag = getJsName(fieldType.Name)
 		}
 
 		// Get the actual value

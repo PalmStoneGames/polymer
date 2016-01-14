@@ -2,9 +2,9 @@ package polymer
 
 import (
 	"reflect"
+	"time"
 
 	"github.com/gopherjs/gopherjs/js"
-	"time"
 )
 
 func init() {
