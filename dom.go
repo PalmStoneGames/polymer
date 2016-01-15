@@ -324,6 +324,9 @@ func (el *WrappedElement) QuerySelectorAll(sel string) []dom.Element {
 func (el *WrappedElement) GetBoundingClientRect() dom.ClientRect {
 	return el.unwrappedElement.GetBoundingClientRect()
 }
+func (el *WrappedElement) ID() string {
+	return el.unwrappedElement.ID()
+}
 
 type EventSubscription struct {
 	event      string
