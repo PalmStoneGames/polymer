@@ -28,6 +28,10 @@ import (
 
 var typeOfElement = reflect.TypeOf((*Element)(nil)).Elem()
 
+type Decoder interface {
+	Decode(*js.Object) error
+}
+
 // Decode decodes a js object to the target
 // it watches for fields on the structure tagged with polymer-decode
 // Tags can be of the following format: `polymer-decode:"js_field_name"`
@@ -43,6 +47,11 @@ func Decode(jsVal *js.Object, target interface{}) error {
 // decodeRaw is an unwrapped version of Decode
 // it is needed internally to be able to avoid the extra reflect indirection from a normal Decode() call
 func decodeRaw(jsVal *js.Object, refVal reflect.Value) error {
+	// Special case for decoders
+	if decoder, ok := refVal.Addr().Interface().(Decoder); ok {
+		return decoder.Decode(jsVal)
+	}
+
 	// Special case for empty jsVals
 	if jsVal == nil || jsVal == js.Undefined {
 		refVal.Set(reflect.Zero(refVal.Type()))
