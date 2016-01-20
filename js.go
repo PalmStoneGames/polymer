@@ -46,6 +46,11 @@ func (t DateTimeLocal) Encode() (*js.Object, bool) {
 }
 
 func (t *DateTimeLocal) Decode(val *js.Object) error {
+	if val == js.Undefined || val == nil || val.String() == "" {
+		*t = DateTimeLocal{}
+		return nil
+	}
+
 	parsedTime, err := time.Parse(DateTimeLocalFormat, val.String())
 	if err != nil {
 		return err
