@@ -39,7 +39,7 @@ type Event struct {
 
 type PropertyChangedEvent struct {
 	Event
-	JSValue *js.Object `polymer-decode:"detail.value"`
+	JSValue *js.Object `polymer-decode:"event.detail.value"`
 }
 
 type MouseEvent struct {
