@@ -35,21 +35,23 @@ func init() {
 	}
 }
 
-// Time is a time.Time that properly encodes and decodes to the format expected by datetime and datetime-local input fields
-// The format is as follows, as per the format definition of the time package: "2006-01-02T15:04:05"
-type Time time.Time
+const DateTimeLocalFormat = "2006-01-02T15:04:05"
 
-func (t Time) Encode() (*js.Object, bool) {
-	return InterfaceToJsObject(time.Time(t).Format("2006-01-02T15:04:05")), !time.Time(t).IsZero()
+// DateTimeLocal is a time.Time that properly encodes and decodes to the format expected datetime-local input fields
+// The format is as follows, as per the format definition of the time package: "2006-01-02T15:04:05"
+type DateTimeLocal time.Time
+
+func (t DateTimeLocal) Encode() (*js.Object, bool) {
+	return InterfaceToJsObject(time.Time(t).Format(DateTimeLocalFormat)), !time.Time(t).IsZero()
 }
 
-func (t *Time) Decode(val *js.Object) error {
-	parsedTime, err := time.Parse("2006-01-02T15:04:05", val.String())
+func (t *DateTimeLocal) Decode(val *js.Object) error {
+	parsedTime, err := time.Parse(DateTimeLocalFormat, val.String())
 	if err != nil {
 		return err
 	}
 
-	*t = Time(parsedTime)
+	*t = DateTimeLocal(parsedTime)
 	return nil
 }
 
