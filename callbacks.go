@@ -241,6 +241,7 @@ func computeCallback(handler reflect.Value) *js.Object {
 			returnArgs = handler.Call(reflectArgs(handler, proto, jsArgs))
 		}
 
-		return returnArgs[0].Interface()
+		encodedReturn, _ := encodeRaw(returnArgs[0])
+		return encodedReturn
 	})
 }
