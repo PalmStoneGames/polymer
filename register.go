@@ -372,25 +372,22 @@ func setObserversNested(refType reflect.Type, m js.M, observers *js.S, path []st
 			continue
 		}
 
-		// Deserialize pointer
+		// Drill into pointer
 		if fieldType.Kind() == reflect.Ptr {
 			fieldType = fieldType.Elem()
 		}
 
 		// Use the kind to decide what to do
 		switch fieldType.Kind() {
-		case reflect.Struct:
+		case reflect.Interface, reflect.Struct, reflect.Slice:
 			if bind {
 				funcName, bindStr := pathBind(currPath, "*")
 				*observers = append(*observers, bindStr)
 				m[funcName] = observeDeepCallback()
 			}
-			setObserversNested(fieldType, m, observers, currPath)
-		case reflect.Slice:
-			if bind {
-				funcName, bindStr := pathBind(currPath, "*")
-				*observers = append(*observers, bindStr)
-				m[funcName] = observeDeepCallback()
+
+			if fieldType.Kind() == reflect.Struct {
+				setObserversNested(fieldType, m, observers, currPath)
 			}
 		default:
 			// Add the current field if bound
