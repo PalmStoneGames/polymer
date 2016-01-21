@@ -68,6 +68,7 @@ func encodeRaw(refVal reflect.Value) (*js.Object, bool) {
 			return InterfaceToJsObject(t), !t.IsZero()
 		default:
 			m := js.M{}
+			isEmpty := true
 			for i := 0; i < refType.NumField(); i++ {
 				fieldType := refType.Field(i)
 				if !isFieldExported(fieldType.Name) {
@@ -75,15 +76,14 @@ func encodeRaw(refVal reflect.Value) (*js.Object, bool) {
 				}
 
 				jsObj, filled := encodeRaw(refVal.Field(i))
-
-				if !filled {
-					continue
+				if filled {
+					isEmpty = false
 				}
 
 				m[getJsName(fieldType.Name)] = jsObj
 			}
 
-			return InterfaceToJsObject(m), len(m) != 0
+			return InterfaceToJsObject(m), !isEmpty
 		}
 
 	default:

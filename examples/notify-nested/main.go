@@ -36,8 +36,10 @@ func (t *DataContainer) Created() {
 }
 
 func (t *DataContainer) HandleInput() {
-	fmt.Printf("AdminData: %#v\n", t.AdminData)
-	fmt.Printf("UsersData: %#v\n", t.UsersData)
+	t.Async(1, func() {
+		fmt.Printf("AdminData: %#v\n", t.AdminData)
+		fmt.Printf("UsersData: %#v\n", t.UsersData)
+	})
 }
 
 func main() {}
