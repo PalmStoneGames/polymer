@@ -4,7 +4,7 @@ for d in */ ; do
 	if [ "$d" != "bower_components/" ]; then
         cd $d
         echo "Building $d"
-        gopherjs build
+        gopherjs build -m
         cd ..
     fi
 done
