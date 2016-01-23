@@ -268,13 +268,24 @@ func parseProperties(refType reflect.Type) js.M {
 		}
 
 		tag := strings.Split(tagText, ",")
-		for i := 0; i < len(tag); i++ {
-			switch tag[i] {
+		if len(tag) > 0 {
+			switch tag[0] {
 			case "bind":
-				properties[getJsName(fieldType.Name)] = js.M{
+				prop := js.M{
 					"type":   getJsType(refType.FieldByIndex(fieldType.Index).Type),
 					"notify": true,
 				}
+
+				for i := 1; i < len(tag); i++ {
+					switch tag[i] {
+					case "reflectToAttribute":
+						prop["reflectToAttribute"] = true
+					case "readOnly":
+						prop["readOnly"] = true
+					}
+				}
+
+				properties[getJsName(fieldType.Name)] = prop
 			}
 		}
 	}
