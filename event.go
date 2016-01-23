@@ -23,6 +23,8 @@ import (
 )
 
 type Event struct {
+	Underlying *js.Object `polymer-decode:"underlying"`
+
 	Type string    `polymer-decode:"event.type"`
 	Time time.Time `polymer-decode:"event.timeStamp"`
 
@@ -54,4 +56,14 @@ type MouseEvent struct {
 
 	FromElement Element `polymer-decode:"event.fromElement"`
 	ToElement   Element `polymer-decode:"event.toElement"`
+}
+
+func (e *Event) StopPropagation() {
+	e.CancelBubble = true
+	e.Underlying.Get("event").Call("stopPropagation")
+}
+
+func (e *Event) PreventDefault() {
+	e.DefaultPrevented = true
+	e.Underlying.Get("event").Call("preventDefault")
 }

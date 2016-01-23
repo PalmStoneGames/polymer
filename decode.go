@@ -154,6 +154,12 @@ func decodeStruct(jsVal *js.Object, refVal reflect.Value) error {
 			tag = getJsName(fieldType.Name)
 		}
 
+		// If the value is called underlying and is a *js.Object, set the underlying js object on it
+		if tag == "underlying" && fieldType.Type == typeOfJsObject {
+			fieldVal.Set(reflect.ValueOf(jsVal))
+			continue
+		}
+
 		// Get the actual value
 		curr := jsVal
 		for _, component := range strings.Split(tag, ".") {
