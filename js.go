@@ -42,7 +42,7 @@ const DateTimeLocalFormat = "2006-01-02T15:04:05"
 type DateTimeLocal time.Time
 
 func (t DateTimeLocal) Encode() (*js.Object, bool) {
-	return InterfaceToJsObject(time.Time(t).Format(DateTimeLocalFormat)), !time.Time(t).IsZero()
+	return InterfaceToJsObject(time.Time(t).Local().Format(DateTimeLocalFormat)), !time.Time(t).IsZero()
 }
 
 func (t *DateTimeLocal) Decode(val *js.Object) error {
@@ -51,7 +51,7 @@ func (t *DateTimeLocal) Decode(val *js.Object) error {
 		return nil
 	}
 
-	parsedTime, err := time.Parse(DateTimeLocalFormat, val.String())
+	parsedTime, err := time.ParseInLocation(DateTimeLocalFormat, val.String(), time.Local)
 	if err != nil {
 		return err
 	}
