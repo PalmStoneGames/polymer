@@ -19,11 +19,12 @@ package polymer
 import (
 	"fmt"
 	"github.com/gopherjs/gopherjs/js"
+	"github.com/gopherjs/jsbuiltin"
 	"honnef.co/go/js/dom"
 	"reflect"
 )
 
-var domAPIConstructor *js.Object
+var domAPI *js.Object
 
 type WrappedElement struct {
 	dom.Element
@@ -89,15 +90,15 @@ func polymerDOM(obj *js.Object) *js.Object {
 }
 
 func isWrapped(obj *js.Object) bool {
-	if domAPIConstructor == nil || domAPIConstructor == js.Undefined {
-		domAPIConstructor = js.Global.Get("Polymer").Get("DomApi").Get("constructor")
+	if domAPI == nil || domAPI == js.Undefined {
+		domAPI = js.Global.Get("Polymer").Get("DomApi")
 	}
 
-	if domAPIConstructor == nil || domAPIConstructor == js.Undefined {
+	if domAPI == nil || domAPI == js.Undefined {
 		panic("Polymer has not correctly initialized yet")
 	}
 
-	return obj.Get("constructor") == domAPIConstructor
+	return jsbuiltin.InstanceOf(obj, domAPI)
 }
 
 func unwrap(obj *js.Object) *js.Object {
@@ -274,7 +275,7 @@ type Element interface {
 }
 
 func (el *WrappedElement) TagName() string {
-	return dom.WrapElement(unwrap(el.Underlying())).TagName()
+	return el.unwrappedElement.TagName()
 }
 
 func (el *WrappedElement) GetAttribute(name string) string {

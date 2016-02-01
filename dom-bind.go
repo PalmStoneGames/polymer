@@ -160,7 +160,7 @@ func (t *autoBindTemplate) render() {
 			this.Call("_prepBindings")
 			this.Call("_prepPropertyInfo")
 			js.Global.Get("Polymer").Get("Base").Get("_initFeatures").Call("call", this)
-			t.children = js.Global.Get("Polymer").Get("DomApi").Call("arrayCopyChildNodes", this.Get("root"))
+			t.children = js.Global.Get("Polymer").Get("TreeApi").Call("arrayCopyChildNodes", this.Get("root"))
 		}
 
 		t.insertChildren()
