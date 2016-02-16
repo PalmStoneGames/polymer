@@ -161,10 +161,20 @@ func decodeStruct(jsVal *js.Object, refVal reflect.Value) error {
 		}
 
 		// Get the actual value
+		// Run this in a closer with a defer recover so we can just set the value to null if any attribute getters throw an exception
 		curr := jsVal
-		for _, component := range strings.Split(tag, ".") {
-			curr = curr.Get(component)
-		}
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					Log("Recovered from JS error while fetching", tag, ":", r.(*js.Error).Object)
+					curr = nil
+				}
+			}()
+
+			for _, component := range strings.Split(tag, ".") {
+				curr = curr.Get(component)
+			}
+		}()
 
 		// Set the value
 		if err := decodeRaw(curr, fieldVal); err != nil {
