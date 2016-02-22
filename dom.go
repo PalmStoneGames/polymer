@@ -28,7 +28,7 @@ var domAPI *js.Object
 
 type WrappedElement struct {
 	dom.Element
-	unwrappedElement dom.Element
+	UnwrappedElement dom.Element
 }
 
 // FlushDOM flushes pending changes to the DOM
@@ -275,18 +275,18 @@ type Element interface {
 }
 
 func (el *WrappedElement) TagName() string {
-	return el.unwrappedElement.TagName()
+	return el.UnwrappedElement.TagName()
 }
 
 func (el *WrappedElement) GetAttribute(name string) string {
-	return el.unwrappedElement.GetAttribute(name)
+	return el.UnwrappedElement.GetAttribute(name)
 }
 func (el *WrappedElement) GetAttributeNS(ns string, name string) string {
-	return el.unwrappedElement.GetAttributeNS(ns, name)
+	return el.UnwrappedElement.GetAttributeNS(ns, name)
 }
 
 func (el *WrappedElement) ParentElement() dom.Element {
-	return WrapDOMElement(el.unwrappedElement.ParentElement())
+	return WrapDOMElement(el.UnwrappedElement.ParentElement())
 }
 
 func (el *WrappedElement) InsertBefore(which dom.Node, before dom.Node) {
@@ -323,10 +323,10 @@ func (el *WrappedElement) QuerySelectorAll(sel string) []dom.Element {
 }
 
 func (el *WrappedElement) GetBoundingClientRect() dom.ClientRect {
-	return el.unwrappedElement.GetBoundingClientRect()
+	return el.UnwrappedElement.GetBoundingClientRect()
 }
 func (el *WrappedElement) ID() string {
-	return el.unwrappedElement.ID()
+	return el.UnwrappedElement.ID()
 }
 
 type EventSubscription struct {
