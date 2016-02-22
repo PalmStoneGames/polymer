@@ -68,27 +68,42 @@ func encodeRaw(refVal reflect.Value) (*js.Object, bool) {
 			return InterfaceToJsObject(t), !t.IsZero()
 		default:
 			m := js.M{}
-			isEmpty := true
-			for i := 0; i < refType.NumField(); i++ {
-				fieldType := refType.Field(i)
-				if !isFieldExported(fieldType.Name) {
-					continue
-				}
-
-				jsObj, filled := encodeRaw(refVal.Field(i))
-				if filled {
-					isEmpty = false
-				}
-
-				m[getJsName(fieldType.Name)] = jsObj
-			}
-
-			return InterfaceToJsObject(m), !isEmpty
+			return InterfaceToJsObject(m), encodeStruct(refVal, m)
 		}
 
 	default:
 		return nil, false
 	}
+}
+
+func encodeStruct(refVal reflect.Value, m js.M) bool {
+	filled := false
+	refType := refVal.Type()
+
+	for i := 0; i < refType.NumField(); i++ {
+		fieldType := refType.Field(i)
+		if !isFieldExported(fieldType.Name) {
+			continue
+		}
+
+		if fieldType.Anonymous && fieldType.Type != typeOfPtrBindProto {
+			if (fieldType.Type.Kind() == reflect.Ptr && fieldType.Type.Elem().Kind() == reflect.Struct) || fieldType.Type.Kind() == reflect.Struct {
+				if encodeStruct(refVal.Field(i), m) {
+					filled = true
+				}
+				continue
+			}
+		}
+
+		jsObj, filled := encodeRaw(refVal.Field(i))
+		if filled {
+			filled = true
+		}
+
+		m[getJsName(fieldType.Name)] = jsObj
+	}
+
+	return filled
 }
 
 func InterfaceToJsObject(target interface{}) *js.Object {
