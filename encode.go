@@ -95,8 +95,8 @@ func encodeStruct(refVal reflect.Value, m js.M) bool {
 			}
 		}
 
-		jsObj, filled := encodeRaw(refVal.Field(i))
-		if filled {
+		jsObj, currFilled := encodeRaw(refVal.Field(i))
+		if currFilled {
 			filled = true
 		}
 
