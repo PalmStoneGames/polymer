@@ -206,7 +206,14 @@ func eventHandlerCallback(handler reflect.Value) *js.Object {
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
 		proto := lookupProto(this)
 
-		jsArgs[0] = js.Global.Get("Polymer").Call("dom", jsArgs[0])
+		domWrappedEvent := js.Global.Get("Polymer").Call("dom", jsArgs[0])
+		if domWrappedEvent.Get("event").Get("path").Index(0) != domWrappedEvent.Get("path").Index(0) {
+			Log("Suppressed event:", domWrappedEvent)
+			return nil
+		}
+
+		jsArgs[0] = domWrappedEvent
+
 		if autoBind, ok := proto.(*autoBindTemplate); ok {
 			handler.Call(reflectArgs(handler, autoBind.Model, jsArgs))
 		} else {
@@ -220,8 +227,13 @@ func eventChanCallback(handlerChan reflect.Value) *js.Object {
 	chanArgType := handlerChan.Type().Elem()
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
 		chanArg := reflect.New(chanArgType)
-		eventObj := js.Global.Get("Polymer").Call("dom", jsArgs[0])
-		decodeRaw(eventObj, chanArg.Elem())
+		domWrappedEvent := js.Global.Get("Polymer").Call("dom", jsArgs[0])
+		if domWrappedEvent.Get("event").Get("path").Index(0) != domWrappedEvent.Get("path").Index(0) {
+			Log("Suppressed event:", domWrappedEvent)
+			return nil
+		}
+
+		decodeRaw(domWrappedEvent, chanArg.Elem())
 		go func() {
 			handlerChan.Send(chanArg.Elem())
 		}()
