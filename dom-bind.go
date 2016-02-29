@@ -14,6 +14,7 @@ type BindInterface interface {
 
 type BindProto struct {
 	this *js.Object
+	Element
 }
 
 func (p *BindProto) data() *BindProto { return p }
@@ -26,6 +27,8 @@ type AutoBindGoTemplate struct {
 }
 
 func (el *AutoBindGoTemplate) Bind(model BindInterface) {
+	model.data().Element = el.WrappedElement
+
 	refType := reflect.TypeOf(model)
 	if refType.Kind() != reflect.Ptr || refType.Elem().Kind() != reflect.Struct {
 		panic("BindInterface should be a pointer to a struct")
