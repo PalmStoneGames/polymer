@@ -27,7 +27,6 @@ type AutoBindGoTemplate struct {
 }
 
 func (el *AutoBindGoTemplate) Bind(model BindInterface) {
-	model.data().Element = el.WrappedElement
 
 	refType := reflect.TypeOf(model)
 	if refType.Kind() != reflect.Ptr || refType.Elem().Kind() != reflect.Struct {
@@ -54,6 +53,8 @@ func (el *AutoBindGoTemplate) Bind(model BindInterface) {
 	if model.data().this != nil {
 		panic("model is already bound to another template")
 	}
+
+	model.data().Element = el.WrappedElement
 
 	// Setup handlers
 	for _, handler := range parseHandlers(refType) {
