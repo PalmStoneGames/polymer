@@ -88,9 +88,20 @@ func encodeStruct(refVal reflect.Value, m js.M) bool {
 
 		if fieldType.Anonymous && fieldType.Type != typeOfPtrBindProto {
 			if (fieldType.Type.Kind() == reflect.Ptr && fieldType.Type.Elem().Kind() == reflect.Struct) || fieldType.Type.Kind() == reflect.Struct {
-				if encodeStruct(refVal.Field(i), m) {
+				var localFilled bool
+				if fieldType.Type.Kind() == reflect.Ptr {
+					f := refVal.Field(i)
+					if !f.IsNil() {
+						localFilled = encodeStruct(f.Elem(), m)
+					}
+				} else {
+					localFilled = encodeStruct(refVal.Field(i), m)
+				}
+
+				if localFilled {
 					filled = true
 				}
+
 				continue
 			}
 		}
