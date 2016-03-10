@@ -97,7 +97,9 @@ func decodeRaw(jsVal *js.Object, refVal reflect.Value) error {
 		length := jsVal.Length()
 		slice := reflect.MakeSlice(refVal.Type(), length, length)
 		for i := 0; i < length; i++ {
-			decodeRaw(jsVal.Index(i), slice.Index(i))
+			if err := decodeRaw(jsVal.Index(i), slice.Index(i)); err != nil {
+				return err
+			}
 		}
 
 		refVal.Set(slice)
@@ -144,7 +146,9 @@ func decodeStruct(jsVal *js.Object, refVal reflect.Value) error {
 					fieldVal = fieldVal.Elem()
 				}
 
-				decodeStruct(jsVal, fieldVal)
+				if err := decodeStruct(jsVal, fieldVal); err != nil {
+					return err
+				}
 			}
 			continue
 		}
@@ -160,11 +164,27 @@ func decodeStruct(jsVal *js.Object, refVal reflect.Value) error {
 			continue
 		}
 
-		// Get the actual value
-		// Run this in a closer with a defer recover so we can just set the value to null if any attribute getters throw an exception
-		curr := jsVal
-		for _, component := range strings.Split(tag, ".") {
-			curr = curr.Get(component)
+		// Run this in a closure with a defer recover so we can return an error in case of any exceptions while calling js attribute getters
+		var curr *js.Object
+		{
+			var err error
+			func() {
+				defer func() {
+					r := recover()
+					if r != nil {
+						err = fmt.Errorf("%v", r)
+					}
+				}()
+
+				curr = jsVal
+				for _, component := range strings.Split(tag, ".") {
+					curr = curr.Get(component)
+				}
+			}()
+
+			if err != nil {
+				return err
+			}
 		}
 
 		// Set the value

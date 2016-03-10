@@ -176,7 +176,7 @@ func observeDeepCallback() *js.Object {
 // We loop through the function arguments and use the types of each argument to decode the jsArgs
 // If the function has more arguments than we have jsArgs, they're passed in as Zero values
 // If the function has less arguments than jsArgs, the superfluous jsArgs are silently discarded
-func reflectArgs(handler reflect.Value, proto interface{}, jsArgs []*js.Object) []reflect.Value {
+func reflectArgs(handler reflect.Value, proto interface{}, jsArgs []*js.Object) ([]reflect.Value, error) {
 	handlerType := handler.Type()
 	reflectArgs := make([]reflect.Value, handlerType.NumIn())
 
@@ -189,7 +189,7 @@ func reflectArgs(handler reflect.Value, proto interface{}, jsArgs []*js.Object) 
 			argPtrVal := reflect.New(argType)
 			if len(jsArgs) > jsIndex {
 				if err := decodeRaw(jsArgs[jsIndex], argPtrVal.Elem()); err != nil {
-					panic(fmt.Sprintf("Error while decoding argument %v: %v", goIndex, err))
+					return nil, err
 				}
 			}
 
@@ -199,28 +199,30 @@ func reflectArgs(handler reflect.Value, proto interface{}, jsArgs []*js.Object) 
 
 	}
 
-	return reflectArgs
-}
-
-func eventHandlerRecover(event *js.Object) {
-	r := recover()
-	if r != nil {
-		Log("Suppressed event ", event, " due to error while decoding: ", r)
-	}
+	return reflectArgs, nil
 }
 
 func eventHandlerCallback(handler reflect.Value) *js.Object {
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
-		defer eventHandlerRecover(jsArgs[0])
-
 		proto := lookupProto(this)
 
 		jsArgs[0] = js.Global.Get("Polymer").Call("dom", jsArgs[0])
+
+		var args []reflect.Value
+		var err error
 		if autoBind, ok := proto.(*autoBindTemplate); ok {
-			handler.Call(reflectArgs(handler, autoBind.Model, jsArgs))
+			args, err = reflectArgs(handler, autoBind.Model, jsArgs)
+
 		} else {
-			handler.Call(reflectArgs(handler, proto, jsArgs))
+			args, err = reflectArgs(handler, proto, jsArgs)
 		}
+
+		if err != nil {
+			Log("Suppressed event ", jsArgs[0], " due to error while decoding: ", err.Error())
+			return nil
+		}
+
+		handler.Call(args)
 		return nil
 	})
 }
@@ -228,10 +230,12 @@ func eventHandlerCallback(handler reflect.Value) *js.Object {
 func eventChanCallback(handlerChan reflect.Value) *js.Object {
 	chanArgType := handlerChan.Type().Elem()
 	return js.MakeFunc(func(this *js.Object, jsArgs []*js.Object) interface{} {
-		defer eventHandlerRecover(jsArgs[0])
-
 		chanArg := reflect.New(chanArgType)
-		decodeRaw(js.Global.Get("Polymer").Call("dom", jsArgs[0]), chanArg.Elem())
+
+		if err := decodeRaw(js.Global.Get("Polymer").Call("dom", jsArgs[0]), chanArg.Elem()); err != nil {
+			Log("Suppressed event ", jsArgs[0], " due to error while decoding: ", err.Error())
+			return nil
+		}
 		go func() {
 			handlerChan.Send(chanArg.Elem())
 		}()
@@ -244,13 +248,25 @@ func computeCallback(handler reflect.Value) *js.Object {
 		proto := lookupProto(this)
 		ensureReady(proto)
 
-		var returnArgs []reflect.Value
+		var (
+			returnArgs []reflect.Value
+			args       []reflect.Value
+			err        error
+		)
+
 		if autoBind, ok := proto.(*autoBindTemplate); ok {
-			returnArgs = handler.Call(reflectArgs(handler, autoBind.Model, jsArgs))
+			args, err = reflectArgs(handler, autoBind.Model, jsArgs)
+
 		} else {
-			returnArgs = handler.Call(reflectArgs(handler, proto, jsArgs))
+			args, err = reflectArgs(handler, proto, jsArgs)
 		}
 
+		if err != nil {
+			Log("Suppressed compute function %v due to error while decoding: %v", handler, err)
+			return nil
+		}
+
+		returnArgs = handler.Call(args)
 		encodedReturn, _ := encodeRaw(returnArgs[0])
 		return encodedReturn
 	})
