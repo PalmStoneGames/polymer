@@ -88,26 +88,3 @@ func (p *Proto) doNotify(path string, val interface{}) {
 func (p *Proto) Fire(event string, val interface{}) {
 	p.this.Call("fire", event, val)
 }
-
-type AsyncHandle struct {
-	jsHandle *js.Object
-}
-
-// Async calls the given callback asynchronously.
-// If the specified wait time is -1, the callback will be ran with microtask timing (after the current method finishes, but before the next event from the event queue is processed)
-// Otherwise, its ran waitTime milliseconds in the future. A waitTime of 1 can be useful to run a callback after all events currently in the queue have been processed.
-// Returns a handle that can be used to cancel the task
-func (p *Proto) Async(waitTime int, f func()) *AsyncHandle {
-	handle := &AsyncHandle{}
-	if waitTime == -1 {
-		handle.jsHandle = p.this.Call("async", f)
-	} else {
-		handle.jsHandle = p.this.Call("async", f, waitTime)
-	}
-
-	return handle
-}
-
-func (p *Proto) CancelAsync(handle *AsyncHandle) {
-	p.this.Call("cancelAsync", handle.jsHandle)
-}

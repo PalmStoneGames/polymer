@@ -29,7 +29,7 @@ func (n *NameTag) Ready() {
 func (n *NameTag) HandleNameChange(e *polymer.Event) {
 	// We need to use async here because we have no guarantee whether the value change or our event gets triggered first
 	// to guarantee the same behaviour across browsers, we delay this by 1ms every time using Async
-	n.Async(1, func() {
+	polymer.Async(1, func() {
 		fmt.Printf("%v: HandleNameChange event. Name = %v\n", n.ID, n.Name)
 	})
 }

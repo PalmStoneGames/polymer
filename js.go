@@ -41,6 +41,10 @@ const DateTimeLocalFormat = "2006-01-02T15:04:05"
 // The format is as follows, as per the format definition of the time package: "2006-01-02T15:04:05"
 type DateTimeLocal time.Time
 
+type AsyncHandle struct {
+	jsHandle *js.Object
+}
+
 func (t DateTimeLocal) Encode() (*js.Object, bool) {
 	return InterfaceToJsObject(time.Time(t).Local().Format(DateTimeLocalFormat)), !time.Time(t).IsZero()
 }
@@ -96,4 +100,23 @@ func getJsType(t reflect.Type) *js.Object {
 
 func getJsPropertyChangedEvent(fieldName string) string {
 	return js.Global.Get("Polymer").Get("CaseMap").Call("camelToDashCase", fieldName).String() + "-changed"
+}
+
+// Async calls the given callback asynchronously.
+// If the specified wait time is -1, the callback will be ran with microtask timing (after the current method finishes, but before the next event from the event queue is processed)
+// Otherwise, its ran waitTime milliseconds in the future. A waitTime of 1 can be useful to run a callback after all events currently in the queue have been processed.
+// Returns a handle that can be used to cancel the task
+func Async(waitTime int, f func()) *AsyncHandle {
+	handle := &AsyncHandle{}
+	if waitTime == -1 {
+		handle.jsHandle = js.Global.Get("Polymer").Get("Async").Call("run", f)
+	} else {
+		handle.jsHandle = js.Global.Get("Polymer").Get("Async").Call("run", f, waitTime)
+	}
+
+	return handle
+}
+
+func (p *Proto) CancelAsync(handle *AsyncHandle) {
+	js.Global.Get("Polymer").Get("Async").Call("cancel", handle.jsHandle)
 }

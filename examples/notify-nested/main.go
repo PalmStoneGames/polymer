@@ -36,7 +36,7 @@ func (t *DataContainer) Created() {
 }
 
 func (t *DataContainer) HandleInput() {
-	t.Async(1, func() {
+	polymer.Async(1, func() {
 		fmt.Printf("AdminData: %#v\n", t.AdminData)
 		fmt.Printf("UsersData: %#v\n", t.UsersData)
 	})
