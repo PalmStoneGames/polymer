@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// The polymer library can be used to work with polymer using GopherJS instead of having to write straight up javascript
+// The polymer library can be used to work with polymer using GopherJS instead of having to write straight up JavaScript.
 // Simple examples to get started are available in the examples/ subfolder. It is highly recommend to go through them.
 //
 // The polymer website itself also has a great deal of information on how to get started, most of the information available there
-// also applies to the Go bindings of polymer
+// also applies to the Go bindings of polymer.
 package polymer // import "code.palmstonegames.com/polymer"
 
 import (
