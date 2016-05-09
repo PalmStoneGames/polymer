@@ -1,0 +1,25 @@
+<link rel="import" href="/bower_components/polymer/polymer.html">
+
+<dom-module id="data-container">
+	<style>
+		:host {
+			display: block;
+		}
+
+		input {
+			display: block;
+			margin-bottom: 1rem;
+		}
+	</style>
+	<template>
+		<div class="container">
+			<b>Login</b>
+			<input type="text" value="{{account.login::input}}" on-input="handleInput"/>
+		</div>
+		<div class="container">
+			<b>Email</b>
+			<input type="email" value="{{account.email::input}}" on-input="handleInput"/>
+		</div>
+	</template>
+	<script>PolymerGo("data-container")</script>
+</dom-module>
