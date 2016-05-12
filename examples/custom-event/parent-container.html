@@ -1,0 +1,22 @@
+<link rel="import" href="/bower_components/polymer/polymer.html">
+
+<dom-module id="parent-container">
+	<style>
+		:host {
+			display: block;
+		}
+
+		input {
+			display: block;
+			margin-bottom: 1rem;
+		}
+	</style>
+	<template>
+		<data-container on-custom-event="doCustomEvent"></data-container>
+    	<div class="container">
+    	    <b>Was Event Fired?</b>
+    	    {{wasFired}}
+    	</div>
+	</template>
+	<script>PolymerGo("parent-container")</script>
+</dom-module>

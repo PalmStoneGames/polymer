@@ -1,0 +1,21 @@
+<link rel="import" href="/bower_components/polymer/polymer.html">
+
+<dom-module id="data-container">
+	<style>
+		:host {
+			display: block;
+		}
+
+		input {
+			display: block;
+			margin-bottom: 1rem;
+		}
+	</style>
+	<template>
+		<div class="container">
+			<b>Write Fire to Fire Event</b>
+			<input type="text" value="{{firePassword::input}}" on-input="handleInput"/>
+		</div>
+	</template>
+	<script>PolymerGo("data-container")</script>
+</dom-module>
