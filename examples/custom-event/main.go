@@ -32,9 +32,10 @@ func (p *ParentContainer) listenToggleEvents() {
 	go func() {
 		for {
 			select {
-			case <-p.DoCustomEvent:
+			case e := <-p.DoCustomEvent:
 				p.WasFired = "Yes"
 				p.Notify("wasFired")
+				fmt.Printf("%v\n", e.Underlying.Get("event").Get("detail").Get("message").String())
 			}
 
 		}
@@ -57,9 +58,10 @@ func (d *DataContainer) Ready() {
 
 func (d *DataContainer) HandleInput() {
 	polymer.Async(1, func() {
-		fmt.Printf("%s\n", d.FirePassword)
 		if d.FirePassword == "Fire" {
-			d.Fire("custom-event", nil)
+			d.Fire("custom-event", map[string]interface{}{
+				"message": "Event Fired from Child",
+			})
 		}
 	})
 }
