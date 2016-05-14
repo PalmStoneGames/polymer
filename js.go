@@ -18,22 +18,11 @@ package polymer
 
 import (
 	"reflect"
-	"regexp"
 	"time"
 	"unicode"
 
 	"github.com/gopherjs/gopherjs/js"
 )
-
-var propertyEventNameRegExp *regexp.Regexp
-
-func init() {
-	var err error
-	propertyEventNameRegExp, err = regexp.Compile("([a-z])([A-Z])")
-	if err != nil {
-		panic(err)
-	}
-}
 
 const DateTimeLocalFormat = "2006-01-02T15:04:05"
 
