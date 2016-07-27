@@ -29,5 +29,5 @@ $ go get github.com/gopherjs/gopherjs
 ```
 Caddy 
 ```
-$ go get github.com/mholt/caddy
+$ go get github.com/mholt/caddy/caddy
 ```
