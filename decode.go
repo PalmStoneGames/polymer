@@ -22,8 +22,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gopherjs/gopherjs/js"
 	"strconv"
+
+	"github.com/gopherjs/gopherjs/js"
 )
 
 var typeOfElement = reflect.TypeOf((*Element)(nil)).Elem()
