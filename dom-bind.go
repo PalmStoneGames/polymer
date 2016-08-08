@@ -1,8 +1,9 @@
 package polymer
 
 import (
-	"github.com/gopherjs/gopherjs/js"
 	"reflect"
+
+	"github.com/gopherjs/gopherjs/js"
 )
 
 var typeOfPtrBindProto = reflect.TypeOf(&BindProto{})
@@ -18,8 +19,10 @@ type BindProto struct {
 }
 
 func (p *BindProto) data() *BindProto { return p }
-func (p *BindProto) Notify(path string) {
-	lookupProto(p.data().this).data().Notify("model." + path)
+func (p *BindProto) Notify(paths ...string) {
+	for _, path := range paths {
+		lookupProto(p.data().this).data().Notify("model." + path)
+	}
 }
 
 type AutoBindGoTemplate struct {
