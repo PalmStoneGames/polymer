@@ -75,10 +75,12 @@ func (p *Proto) data() *Proto { return p }
 func (p *Proto) This() *js.Object { return p.this }
 
 // Notify notifies polymer that a value has changed
-func (p *Proto) Notify(path string) {
-	refVal := getRefValForPath(lookupProto(p.this), strings.Split(path, "."))
-	jsObj, _ := encodeRaw(refVal)
-	p.doNotify(path, jsObj)
+func (p *Proto) Notify(paths ...string) {
+	for _, path := range paths {
+		refVal := getRefValForPath(lookupProto(p.this), strings.Split(path, "."))
+		jsObj, _ := encodeRaw(refVal)
+		p.doNotify(path, jsObj)
+	}
 }
 
 func (p *Proto) doNotify(path string, val interface{}) {
