@@ -9,7 +9,7 @@ import (
 var typeOfPtrBindProto = reflect.TypeOf(&BindProto{})
 
 type BindInterface interface {
-	Notify(path string)
+	Notify(path ...string)
 	data() *BindProto
 }
 
