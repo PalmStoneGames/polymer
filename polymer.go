@@ -19,7 +19,7 @@ limitations under the License.
 //
 // The polymer website itself also has a great deal of information on how to get started, most of the information available there
 // also applies to the Go bindings of polymer.
-package polymer // import "code.palmstonegames.com/polymer"
+package polymer
 
 import (
 	"unicode"
