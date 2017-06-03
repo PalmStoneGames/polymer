@@ -1,7 +1,7 @@
 # polymer
 GopherJS bindings for polymer
 
-```go get -u code.palmstonegames.com/polymer```
+```go get -u github.com/PalmStoneGames/polymer```
 
 [Official Site](https://www.polymer-project.org/1.0/)
 

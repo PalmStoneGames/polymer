@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"code.palmstonegames.com/polymer"
+	"github.com/PalmStoneGames/polymer"
 )
 
 func init() {
