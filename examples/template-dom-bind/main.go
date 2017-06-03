@@ -3,7 +3,7 @@ package main
 import (
 	"time"
 
-	"code.palmstonegames.com/polymer"
+	"github.com/PalmStoneGames/polymer"
 )
 
 var data = &Data{Text: "This text is set from Go", RemainingTime: 5}

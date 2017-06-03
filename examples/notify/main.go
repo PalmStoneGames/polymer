@@ -1,8 +1,9 @@
 package main
 
 import (
-	"code.palmstonegames.com/polymer"
 	"time"
+
+	"github.com/PalmStoneGames/polymer"
 )
 
 func init() {

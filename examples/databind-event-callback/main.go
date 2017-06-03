@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 
-	"code.palmstonegames.com/polymer"
+	"github.com/PalmStoneGames/polymer"
 )
 
 func init() {
